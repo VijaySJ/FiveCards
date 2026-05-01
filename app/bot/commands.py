@@ -169,11 +169,22 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         game = state_manager.get_game_or_raise(chat_id)
-        if not context.args:
+        
+        args = context.args or []
+        if not args and update.message and update.message.text:
+            parts = update.message.text.split()
+            # If triggered via @botname /drop 6H, we want everything after /drop
+            try:
+                drop_idx = next(i for i, p in enumerate(parts) if p.lower() == "/drop")
+                args = parts[drop_idx + 1:]
+            except StopIteration:
+                pass
+
+        if not args:
             await update.message.reply_text("❌ Usage: /drop <card> [card2] ...\nExample: /drop 6H  or  /drop 6H 6D 6C")
             return
 
-        cards_to_drop = [c.upper() for c in context.args]
+        cards_to_drop = [c.upper() for c in args]
         hand_empty = game_engine.process_drop(game, user.id, cards_to_drop)
         state_manager.update_game(chat_id, game)
 

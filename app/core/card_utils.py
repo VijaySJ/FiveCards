@@ -225,7 +225,7 @@ def format_hand(hand: list[str], joker_rank: str) -> str:
     """Format a complete hand with card display and point values.
 
     Example output:
-      "A♠(1)  6♥(0)  K♦(13)  J♣(11)  🃏(0)  →  Total: 25 pts"
+      "A♠  6♥  K♦  J♣  🃏  →  Total: 25 pts"
 
     Args:
         hand: List of card strings.
@@ -240,8 +240,7 @@ def format_hand(hand: list[str], joker_rank: str) -> str:
     parts: list[str] = []
     for card in hand:
         display = format_card(card)
-        pts = card_point_value(card, joker_rank)
-        parts.append(f"{display}({pts})")
+        parts.append(f"{display}")
 
     total = hand_value(hand, joker_rank)
     return "  ".join(parts) + f"  →  Total: {total} pts"

@@ -66,6 +66,10 @@ def main() -> None:
     # ── Callback query handler ────────────────────────────────────
     app.add_handler(CallbackQueryHandler(handle_callback))
 
+    # ── Fallback for inline-query-chat prepended commands ─────────
+    # Handles messages like "@FiveCardsBot /drop 6H"
+    app.add_handler(MessageHandler(filters.Regex(r"(?i)^\s*@[a-zA-Z0-9_]+\s+/drop\b"), cmd_drop))
+
     # ── Fallback for unknown commands ─────────────────────────────
     app.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
 

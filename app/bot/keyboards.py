@@ -30,7 +30,7 @@ def turn_keyboard() -> InlineKeyboardMarkup:
 
     Buttons:
       Row 1: [🃏 Pick Open Card]  [🎴 Draw from Pile]
-      Row 2: [🏳️ Declare]
+      Row 2: [🏳️ Declare] [⏬ Drop the Card]
 
     Returns:
         InlineKeyboardMarkup with turn action buttons.
@@ -42,6 +42,7 @@ def turn_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
+            InlineKeyboardButton("⏬ Drop the Card", switch_inline_query_current_chat="/drop "),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)

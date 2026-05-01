@@ -44,13 +44,14 @@ def fmt_game_starting(game: dict) -> str:
     first_player = game["players"][0]
 
     lines = [
-        "🎯 ━━━━━━━━━━━━━━━━━━━━ 🎯",
-        f"   Round {game['round_current']} / {game['rounds_total']}",
-        "🎯 ━━━━━━━━━━━━━━━━━━━━ 🎯",
+        "╭━━━━━━━━━━━━━━━━━━━━━━╮",
+        f"    🎯 Round {game['round_current']} / {game['rounds_total']} 🎯",
+        "╰━━━━━━━━━━━━━━━━━━━━━━╯",
         "",
-        f"🃏 Open card: {format_card(open_card)}",
-        f"🎭 Joker rank: {joker_rank} (all {joker_rank}s = 0 pts)",
+        f"🃏 Open Card:  {format_card(open_card)}",
+        f"🎭 Joker Rank: {joker_rank}  (All {joker_rank}s = 0 pts)",
         "",
+        "👥 Player Cards:",
         fmt_card_counts(game),
         "",
         f"▶️ {first_player['username']}'s turn!",
@@ -67,14 +68,15 @@ def fmt_turn_announcement(game: dict) -> str:
     joker_rank = game["joker_rank"]
 
     lines = [
-        "─────────────────────────",
-        f"▶️  {active['username']}'s turn",
+        "╭─────────────────────────╮",
+        f"   ▶️  {active['username']}'s Turn",
+        "╰─────────────────────────╯",
         "",
-        f"🃏 Open card: {format_card(open_card)}",
+        f"🃏 Open Card:  {format_card(open_card)}",
         f"🎭 Joker: {joker_rank}",
         "",
-        fmt_card_counts(game),
-        "─────────────────────────",
+        "👥 Player Cards:",
+        f"  {fmt_card_counts(game)}",
     ]
     return "\n".join(lines)
 
@@ -151,9 +153,9 @@ def fmt_player_hand_empty(username: str) -> str:
 def fmt_declaration(declarer_username: str) -> str:
     """Format the declaration announcement for group chat."""
     lines = [
-        "🏳️ ━━━━━━━━━━━━━━━━━━━━ 🏳️",
-        f"  {declarer_username} DECLARES!",
-        "🏳️ ━━━━━━━━━━━━━━━━━━━━ 🏳️",
+        "╭━━━━━━━━━━━━━━━━━━━━━━╮",
+        f"   🏳️ {declarer_username} DECLARES! 🏳️",
+        "╰━━━━━━━━━━━━━━━━━━━━━━╯",
         "",
         "All hands revealed! Calculating scores...",
     ]
@@ -167,10 +169,10 @@ def fmt_all_hands_revealed(game: dict) -> str:
 
     for player in game["players"]:
         if not player["hand"]:
-            lines.append(f"  {player['username']}: 🫗 Empty hand → 0 pts")
+            lines.append(f"  👤 {player['username']}: 🫗 Empty hand → 0 pts")
         else:
             formatted = format_hand(player["hand"], joker_rank)
-            lines.append(f"  {player['username']}: {formatted}")
+            lines.append(f"  👤 {player['username']}: {formatted}")
 
     return "\n".join(lines)
 
@@ -179,8 +181,9 @@ def fmt_round_result(game: dict, round_scores: dict[int, int], declarer_username
     """Format the full round result announcement for group chat."""
     round_num = game["round_current"]
     lines = [
-        f"📊 Round {round_num} Results",
-        "─────────────────────────",
+        "╭─────────────────────────╮",
+        f"   📊 Round {round_num} Results",
+        "╰─────────────────────────╯",
     ]
 
     sorted_players = sorted(

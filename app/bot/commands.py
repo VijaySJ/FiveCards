@@ -107,7 +107,7 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
 
         start_msg = fmt.fmt_game_starting(game)
-        await update.message.reply_text(start_msg, reply_markup=keyboards.turn_keyboard())
+        await update.message.reply_text(start_msg, reply_markup=keyboards.turn_keyboard(game))
         
         start_turn_timer(context, chat_id, game)
         logger.info("/startgame in chat %d — %d players", chat_id, len(game["players"]))
@@ -130,7 +130,7 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         await update.message.reply_text(
             fmt.fmt_player_picked(username),
-            reply_markup=keyboards.turn_keyboard(),
+            reply_markup=keyboards.turn_keyboard(game),
         )
 
         # Send hand via DM with navigation
@@ -165,7 +165,7 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         await update.message.reply_text(
             fmt.fmt_player_drew(username),
-            reply_markup=keyboards.turn_keyboard(),
+            reply_markup=keyboards.turn_keyboard(game),
         )
 
         # Send hand via DM with navigation
@@ -224,7 +224,7 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         turn_msg = fmt.fmt_turn_announcement(game)
-        await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard())
+        await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
         
         start_turn_timer(context, chat_id, game)
         logger.info("/drop %s by %s in chat %d", cards_to_drop, username, chat_id)

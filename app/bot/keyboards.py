@@ -14,22 +14,27 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from app.config.settings import BOT_USERNAME
 
 
-def turn_keyboard() -> InlineKeyboardMarkup:
+def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
     """Build the main turn keyboard with all action buttons.
 
-    All buttons are shown together in one message. The game engine
-    validates the current phase and returns contextual errors if
-    a button is pressed out of sequence.
-
-    Buttons:
-      Row 1: [🃏 Pick Open Card]  [🎴 Draw from Pile]
-      Row 2: [🏳️ Declare]  [⏬ Drop the Card]
-      Row 3: [🃏 Card In Hand →]
+    If game is in 'must_discard' phase, only the Drop button is shown.
 
     Returns:
-        InlineKeyboardMarkup with all turn action buttons.
+        InlineKeyboardMarkup with relevant turn action buttons.
     """
     bot_dm_link = f"https://t.me/{BOT_USERNAME}"
+    
+    if game and game.get("turn_phase") == "must_discard":
+        keyboard = [
+            [
+                InlineKeyboardButton("⏬ Drop the Card", switch_inline_query_current_chat="/drop "),
+            ],
+            [
+                InlineKeyboardButton("🃏 Card In Hand →", url=bot_dm_link),
+            ]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
     keyboard = [
         [
             InlineKeyboardButton("🃏 Pick Open Card", callback_data="action:pick"),

@@ -64,7 +64,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_player_picked(username),
-                reply_markup=keyboards.turn_keyboard(),
+                reply_markup=keyboards.turn_keyboard(game),
             )
 
             # Send hand via DM with navigation
@@ -91,7 +91,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_player_drew(username),
-                reply_markup=keyboards.turn_keyboard(),
+                reply_markup=keyboards.turn_keyboard(game),
             )
 
             # Send hand via DM with navigation
@@ -158,7 +158,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             start_msg = fmt.fmt_game_starting(game)
             await context.bot.send_message(
                 chat_id=chat_id, text=start_msg,
-                reply_markup=keyboards.turn_keyboard(),
+                reply_markup=keyboards.turn_keyboard(game),
             )
             
             start_turn_timer(context, chat_id, game)

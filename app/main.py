@@ -58,7 +58,7 @@ def main() -> None:
     app.add_handler(CommandHandler("draw", cmd_draw))
     app.add_handler(CommandHandler("drop", cmd_drop))
     # Support for inline query button auto-typing (e.g., "@fivecardsbot /drop 6H")
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)/drop"), cmd_drop))
+    app.add_handler(MessageHandler(filters.Regex(r"(?i).*/drop"), cmd_drop))
     app.add_handler(CommandHandler("declare", cmd_declare))
     app.add_handler(CommandHandler("hand", cmd_hand))
     app.add_handler(CommandHandler("scores", cmd_scores))

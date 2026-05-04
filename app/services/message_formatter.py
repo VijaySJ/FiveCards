@@ -69,7 +69,7 @@ def fmt_turn_announcement(game: dict) -> str:
 
     lines = [
         "┌─────────────────────────┐",
-        f"│   ▶️  {active['username']}'s Turn",
+        f"│   ▶️  {active['username']}'s Turn (⏳ 60s)",
         "└─────────────────────────┘",
         "",
         f"  🃏 Open Card:  {format_card(open_card)}",

@@ -16,18 +16,18 @@ logger = logging.getLogger(__name__)
 def fmt_game_created(admin_username: str, rounds: int, chat_title: str = "") -> str:
     """Format the 'new game created' announcement for group chat."""
     lines = [
-        "🎴 ━━━━━━━━━━━━━━━━━━━━ 🎴",
-        "  🃏  5 CARDS — New Game!  🃏",
-        "🎴 ━━━━━━━━━━━━━━━━━━━━ 🎴",
+        "╔═══════════════════════════╗",
+        "║   🃏  5 CARDS — New Game!  🃏   ║",
+        "╚═══════════════════════════╝",
         "",
-        f"👑 Admin: {admin_username}",
-        f"🔁 Rounds: {rounds}",
+        f"  👑 Admin: {admin_username}",
+        f"  🔁 Rounds: {rounds}",
         "",
-        "📢 Type /join to enter the game!",
-        f"👥 Need at least 2 players (max 10).",
+        "  📢 Type /join to enter the game!",
+        f"  👥 Need at least 2 players (max 10).",
         "",
-        "⚠️ Before starting, DM me (@bot) so I can",
-        "   send you your cards privately!",
+        "  ⚠️ Before starting, DM me (@bot) so I can",
+        "     send you your cards privately!",
     ]
     return "\n".join(lines)
 
@@ -44,19 +44,19 @@ def fmt_game_starting(game: dict) -> str:
     first_player = game["players"][0]
 
     lines = [
-        "╭━━━━━━━━━━━━━━━━━━━━━━╮",
-        f"    🎯 Round {game['round_current']} / {game['rounds_total']} 🎯",
-        "╰━━━━━━━━━━━━━━━━━━━━━━╯",
+        "╔═══════════════════════════╗",
+        f"║   🎯 Round {game['round_current']} / {game['rounds_total']}   🎯          ║",
+        "╚═══════════════════════════╝",
         "",
-        f"🃏 Open Card:  {format_card(open_card)}",
-        f"🎭 Joker Rank: {joker_rank}  (All {joker_rank}s = 0 pts)",
+        f"  🃏 Open Card:  {format_card(open_card)}",
+        f"  🎭 Joker Rank: {joker_rank}  (All {joker_rank}s = 0 pts)",
         "",
-        "👥 Player Cards:",
-        fmt_card_counts(game),
+        "  👥 Player Cards:",
+        f"  {fmt_card_counts(game)}",
         "",
-        f"▶️ {first_player['username']}'s turn!",
+        f"  ▶️ {first_player['username']}'s turn!",
         "",
-        "📬 Check your DM for your cards!",
+        "  📬 Check your DM for your cards!",
     ]
     return "\n".join(lines)
 
@@ -68,15 +68,27 @@ def fmt_turn_announcement(game: dict) -> str:
     joker_rank = game["joker_rank"]
 
     lines = [
-        "╭─────────────────────────╮",
-        f"   ▶️  {active['username']}'s Turn",
-        "╰─────────────────────────╯",
+        "┌─────────────────────────┐",
+        f"│   ▶️  {active['username']}'s Turn",
+        "└─────────────────────────┘",
         "",
-        f"🃏 Open Card:  {format_card(open_card)}",
-        f"🎭 Joker: {joker_rank}",
+        f"  🃏 Open Card:  {format_card(open_card)}",
+        f"  🎭 Joker: {joker_rank}",
         "",
-        "👥 Player Cards:",
+        "  👥 Player Cards:",
         f"  {fmt_card_counts(game)}",
+    ]
+    return "\n".join(lines)
+
+
+def fmt_discard_prompt(username: str) -> str:
+    """Format the discard prompt shown in group after pick/draw."""
+    lines = [
+        f"📝 {username}, drop a card now!",
+        "",
+        "  Type: /drop <card>",
+        "  Example: /drop 6H",
+        "  Multi-drop (same rank): /drop 6H 6D 6C",
     ]
     return "\n".join(lines)
 
@@ -86,11 +98,13 @@ def fmt_hand_dm(player: dict, joker_rank: str) -> str:
     hand = player["hand"]
     formatted = format_hand(hand, joker_rank)
     lines = [
-        f"🎴 Your hand ({len(hand)} cards):",
+        "┌─────────────────────────┐",
+        f"│  🎴 Your Hand ({len(hand)} cards)",
+        "└─────────────────────────┘",
         "",
-        formatted,
+        f"  {formatted}",
         "",
-        f"🎭 Joker rank: {joker_rank}",
+        f"  🎭 Joker rank: {joker_rank}",
     ]
     return "\n".join(lines)
 
@@ -100,12 +114,14 @@ def fmt_must_discard_dm(player: dict, picked_card: str, joker_rank: str) -> str:
     lines = [
         f"📥 You picked: {format_card(picked_card)}",
         "",
-        f"🎴 Your hand ({len(player['hand'])} cards):",
-        format_hand(player["hand"], joker_rank),
+        "┌─────────────────────────┐",
+        f"│  🎴 Your Hand ({len(player['hand'])} cards)",
+        "└─────────────────────────┘",
+        f"  {format_hand(player['hand'], joker_rank)}",
         "",
-        "👉 Reply /drop <card> to discard.",
-        "   Example: /drop 6H",
-        "   Multi-drop (same rank): /drop 6H 6D 6C",
+        "👉 Go back to group & type:",
+        "   /drop <card>  (e.g., /drop 6H)",
+        "   Multi-drop: /drop 6H 6D 6C",
     ]
     return "\n".join(lines)
 
@@ -153,9 +169,9 @@ def fmt_player_hand_empty(username: str) -> str:
 def fmt_declaration(declarer_username: str) -> str:
     """Format the declaration announcement for group chat."""
     lines = [
-        "╭━━━━━━━━━━━━━━━━━━━━━━╮",
-        f"   🏳️ {declarer_username} DECLARES! 🏳️",
-        "╰━━━━━━━━━━━━━━━━━━━━━━╯",
+        "╔═══════════════════════════╗",
+        f"║  🏳️ {declarer_username} DECLARES! 🏳️",
+        "╚═══════════════════════════╝",
         "",
         "All hands revealed! Calculating scores...",
     ]
@@ -165,7 +181,12 @@ def fmt_declaration(declarer_username: str) -> str:
 def fmt_all_hands_revealed(game: dict) -> str:
     """Format revealed hands of all players after declaration."""
     joker_rank = game["joker_rank"]
-    lines: list[str] = ["📋 Revealed Hands:", ""]
+    lines: list[str] = [
+        "┌─────────────────────────┐",
+        "│  📋 Revealed Hands",
+        "└─────────────────────────┘",
+        "",
+    ]
 
     for player in game["players"]:
         if not player["hand"]:
@@ -181,9 +202,9 @@ def fmt_round_result(game: dict, round_scores: dict[int, int], declarer_username
     """Format the full round result announcement for group chat."""
     round_num = game["round_current"]
     lines = [
-        "╭─────────────────────────╮",
-        f"   📊 Round {round_num} Results",
-        "╰─────────────────────────╯",
+        "╔═══════════════════════════╗",
+        f"║   📊 Round {round_num} Results",
+        "╚═══════════════════════════╝",
     ]
 
     sorted_players = sorted(
@@ -214,19 +235,20 @@ def fmt_round_result(game: dict, round_scores: dict[int, int], declarer_username
 
 
 def fmt_card_counts(game: dict) -> str:
-    """Format card counts for all players."""
+    """Format card counts for all players using card-back emoji."""
     parts: list[str] = []
     for player in game["players"]:
         count = len(player["hand"])
-        parts.append(f"{player['username']}: {count}🃏")
-    return " | ".join(parts)
+        parts.append(f"{player['username']}: {count}🎴")
+    return " │ ".join(parts)
 
 
 def fmt_scores(game: dict) -> str:
     """Format current running scores for /scores command."""
     lines = [
-        "📊 Current Scores",
-        "─────────────────────────",
+        "╔═══════════════════════════╗",
+        "║   📊 Current Scores",
+        "╚═══════════════════════════╝",
     ]
     sorted_players = sorted(game["players"], key=lambda p: p["total_score"])
     for player in sorted_players:
@@ -248,7 +270,7 @@ def fmt_reshuffle_notice() -> str:
 
 def fmt_help() -> str:
     """Format the /help command response."""
-    return """🃏 *5 CARDS — Help \& Rules* 🃏
+    return r"""🃏 *5 CARDS — Help \& Rules* 🃏
 
 *Commands:*
 /newgame \\[rounds\\] — Create a new game \\(default 3 rounds\\)
@@ -256,7 +278,7 @@ def fmt_help() -> str:
 /startgame — Start the game \\(admin only\\)
 /pick — Pick the open \\(top discard\\) card
 /draw — Draw from the middle pile
-/drop <cards> — Discard card\\(s\\) \\(e\\.g\\. /drop 6H or /drop 6H 6D\\)
+/drop \<cards\> — Discard card\\(s\\) \\(e\\.g\\. /drop 6H or /drop 6H 6D\\)
 /declare — Declare \\(attempt to win the round\\)
 /hand — View your hand \\(sent via DM\\)
 /scores — View current scores
@@ -266,7 +288,6 @@ def fmt_help() -> str:
 *Turn Flow:*
 1\\. Pick open card OR Draw from pile OR Declare
 2\\. After pick/draw: drop one or more cards \\(same rank\\)
-3\\. If you pick and hold 2\\+ of that rank, you can group\\-drop all\\!
 
 *Scoring:*
 A\\=1, 2\\-10\\=face value, J\\=11, Q\\=12, K\\=13
@@ -274,7 +295,7 @@ Jokers \\& joker\\-rank cards \\= 0 pts
 Lowest total score wins\\!
 
 *Declaration:*
-• Your score < everyone → You get 0 pts\\!
+• Your score \< everyone → You get 0 pts\\!
 • Someone has lower → You get 80 pts penalty
 • Someone ties → Both get 0 \\(unless penalty applies\\)
 • Empty hand → Always 0 pts"""

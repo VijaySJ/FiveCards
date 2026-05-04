@@ -18,6 +18,10 @@ load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 # ── Bot token (required) ──────────────────────────────────────────
 BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
 
+# ── Bot & Group links (for navigation buttons) ───────────────────
+BOT_USERNAME: str = os.getenv("BOT_USERNAME", "fivecardsbot")
+GROUP_LINK: str = os.getenv("GROUP_LINK", "https://t.me/TamilChatRockers_world")
+
 # ── Game constants ────────────────────────────────────────────────
 MAX_PLAYERS: int = int(os.getenv("MAX_PLAYERS", "10"))
 DEFAULT_ROUNDS: int = int(os.getenv("DEFAULT_ROUNDS", "3"))

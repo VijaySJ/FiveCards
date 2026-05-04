@@ -26,7 +26,7 @@ class NotYourTurnError(GameException):
     """Raised when a player tries to act out of turn."""
 
     def __init__(self, username: str = "") -> None:
-        msg = f"⏳ Wait for your turn, {username}!" if username else "⏳ It's not your turn!"
+        msg = f"⏳ It's not your turn! Wait for {username}." if username else "⏳ It's not your turn!"
         super().__init__(msg)
 
 
@@ -46,13 +46,43 @@ class InvalidActionError(GameException):
 
 
 class WrongPhaseError(GameException):
-    """Raised when a command is used during the wrong turn phase."""
+    """Raised when a command is used during the wrong turn phase.
 
-    def __init__(self, expected_phase: str = "") -> None:
+    Provides clear, contextual error messages based on what the player
+    attempted and what they should do instead.
+    """
+
+    # Message templates for each invalid action → phase combination
+    _MESSAGES: dict[tuple[str, str], str] = {
+        # Tried to pick/draw but should be dropping
+        ("pick", "must_discard"):
+            "⚠️ You already picked a card! Drop a card first using /drop <card>",
+        ("draw", "must_discard"):
+            "⚠️ You already drew a card! Drop a card first using /drop <card>",
+        # Tried to declare but should be dropping
+        ("declare", "must_discard"):
+            "⚠️ You need to drop a card first before declaring!",
+        # Tried to drop but should be picking/drawing
+        ("drop", "choose_action"):
+            "⚠️ Pick a card or draw from the pile first!",
+        # Tried to drop_prompt but should be picking/drawing
+        ("drop_prompt", "choose_action"):
+            "⚠️ Pick a card or draw from the pile first!",
+    }
+
+    def __init__(self, expected_phase: str = "", action: str = "") -> None:
+        if action and expected_phase:
+            key = (action, expected_phase)
+            msg = self._MESSAGES.get(key)
+            if msg:
+                super().__init__(msg)
+                return
+
+        # Fallback messages for backward compatibility
         if expected_phase == "must_discard":
-            msg = "🚫 You need to /drop a card first."
+            msg = "⚠️ You already have a card! Drop a card first using /drop <card>"
         elif expected_phase == "choose_action":
-            msg = "🚫 You need to /pick, /draw, or /declare first."
+            msg = "⚠️ Pick a card or draw from the pile first!"
         else:
             msg = "🚫 You can't do that right now."
         super().__init__(msg)

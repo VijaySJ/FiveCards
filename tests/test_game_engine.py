@@ -55,8 +55,11 @@ def test_open_card_set_after_deal():
     assert len(game["discard_pile"]) == 1
 
 
-def test_group_drop_clears_matching_cards():
-    """When picking a card and holding 2+ of the same rank, group drop fires."""
+def test_pick_no_auto_group_drop():
+    """Picking a card should NOT auto group-drop even when holding matching rank cards.
+
+    The player should keep all cards and choose what to drop manually.
+    """
     game = _make_test_game(3)
     player = game["players"][0]
     player["hand"] = ["6H", "6D", "KS", "3C", "AS"]
@@ -64,19 +67,20 @@ def test_group_drop_clears_matching_cards():
     game["current_turn_idx"] = 0
     game["turn_phase"] = "choose_action"
 
-    picked_card, group_dropped = process_pick(game, player["user_id"])
+    picked_card = process_pick(game, player["user_id"])
 
     assert picked_card == "6C"
-    assert group_dropped is not None
-    assert len(group_dropped) == 3
-    assert len(player["hand"]) == 3
-    assert "6H" not in player["hand"]
-    assert "6D" not in player["hand"]
-    assert "6C" not in player["hand"]
+    # Player should keep all cards including the picked one
+    assert len(player["hand"]) == 6
+    assert "6C" in player["hand"]
+    assert "6H" in player["hand"]
+    assert "6D" in player["hand"]
+    # Phase should be must_discard so player can choose what to drop
+    assert game["turn_phase"] == "must_discard"
 
 
-def test_group_drop_with_4_matching_cards():
-    """Group drop should work with 4+ matching cards (multi-deck scenario)."""
+def test_pick_with_many_matching_cards_no_auto_drop():
+    """Even with 4+ matching cards, pick should NOT auto group-drop."""
     game = _make_test_game(3)
     player = game["players"][0]
     player["hand"] = ["6H", "6D", "6S", "KS", "AS"]
@@ -84,12 +88,12 @@ def test_group_drop_with_4_matching_cards():
     game["current_turn_idx"] = 0
     game["turn_phase"] = "choose_action"
 
-    picked_card, group_dropped = process_pick(game, player["user_id"])
+    picked_card = process_pick(game, player["user_id"])
 
     assert picked_card == "6C"
-    assert group_dropped is not None
-    assert len(group_dropped) == 4
-    assert len(player["hand"]) == 2
+    # All cards kept — player chooses what to drop
+    assert len(player["hand"]) == 6
+    assert game["turn_phase"] == "must_discard"
 
 
 def test_advance_turn_wraps_around():

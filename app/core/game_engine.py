@@ -5,12 +5,11 @@ All functions are pure sync (no Telegram imports).
 This module orchestrates card_utils and score_engine to implement
 the full game flow: lobby → deal → turns → declare → next round.
 
-Group Drop Rule:
-  After picking a card (from discard or draw pile), if the player
-  holds 2 or more cards of the SAME RANK as the picked card,
-  the player MAY drop ALL matching-rank cards (including the picked
-  card) at once.  This counts as the discard — no separate /drop needed.
-  If the player's hand becomes empty after a group drop, they score 0.
+Drop Rule:
+  After picking a card (from discard or draw pile), the player
+  MUST drop one or more cards from their hand. Multi-drop is allowed
+  only when all dropped cards share the same rank.
+  If the player's hand becomes empty after a drop, they score 0.
 """
 
 import logging
@@ -179,44 +178,34 @@ def validate_active_player(game: dict, player_id: int) -> dict:
     return active
 
 
-def process_pick(game: dict, player_id: int) -> tuple[str, Optional[list[str]]]:
+def process_pick(game: dict, player_id: int) -> str:
     """Player picks the top card from the discard pile.
+
+    After picking, the player must drop a card (turn_phase → must_discard).
+    The player always chooses what to drop — no automatic group-drop.
 
     Args:
         game: Game state dict. Mutated in place.
         player_id: User ID of the picking player.
 
     Returns:
-        Tuple of (picked_card, group_dropped_cards_or_None).
+        The picked card string.
     """
     player = validate_active_player(game, player_id)
 
     if game["turn_phase"] != "choose_action":
-        raise WrongPhaseError("must_discard")
+        raise WrongPhaseError("must_discard", action="pick")
     if not game["discard_pile"]:
         raise InvalidActionError("❌ Discard pile is empty!")
 
     picked = game["discard_pile"].pop()
     player["hand"].append(picked)
     game["picked_card"] = picked
-    picked_rank = card_utils.get_card_rank(picked)
 
-    logger.info("Player %s picked %s from discard pile (rank: %s)", player["username"], picked, picked_rank)
-
-    matching = card_utils.find_matching_rank_cards(player["hand"], picked_rank)
-    if len(matching) >= 2:
-        for c in matching:
-            player["hand"].remove(c)
-        game["discard_pile"].extend(matching)
-        logger.info("Group drop! %s dropped %d cards of rank %s: %s", player["username"], len(matching), picked_rank, matching)
-        if not player["hand"]:
-            logger.info("Player %s hand is empty after group drop!", player["username"])
-        game["picked_card"] = None
-        advance_turn(game)
-        return picked, matching
+    logger.info("Player %s picked %s from discard pile", player["username"], picked)
 
     game["turn_phase"] = "must_discard"
-    return picked, None
+    return picked
 
 
 def process_draw(game: dict, player_id: int) -> str:
@@ -232,7 +221,7 @@ def process_draw(game: dict, player_id: int) -> str:
     player = validate_active_player(game, player_id)
 
     if game["turn_phase"] != "choose_action":
-        raise WrongPhaseError("must_discard")
+        raise WrongPhaseError("must_discard", action="draw")
 
     if not game["deck"]:
         _reshuffle_discard_to_deck(game)
@@ -260,7 +249,7 @@ def process_drop(game: dict, player_id: int, cards_to_drop: list[str]) -> bool:
     player = validate_active_player(game, player_id)
 
     if game["turn_phase"] != "must_discard":
-        raise WrongPhaseError("choose_action")
+        raise WrongPhaseError("choose_action", action="drop")
     if not cards_to_drop:
         raise InvalidActionError("❌ You must specify at least one card to drop.")
 
@@ -302,7 +291,7 @@ def process_declare(game: dict, player_id: int) -> dict[int, int]:
     validate_active_player(game, player_id)
 
     if game["turn_phase"] != "choose_action":
-        raise WrongPhaseError("choose_action")
+        raise WrongPhaseError("must_discard", action="declare")
 
     game["declared_by_id"] = player_id
     game["status"] = "declaring"

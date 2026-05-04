@@ -28,6 +28,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
       - "action:pick" → pick open card
       - "action:draw" → draw from pile
       - "action:declare" → declare
+      - "action:drop_prompt" → prompt player to type /drop
       - "see_scores" → show scores
       - "next_round" → start next round
       - "finish_game" → end game and show leaderboard
@@ -44,43 +45,71 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             game = state_manager.get_game_or_raise(chat_id)
             player = state_manager.get_player_or_raise(game, user.id)
             hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-            await send_dm(context.bot, user.id, hand_msg, username=player["username"], chat_id=chat_id)
+            await send_dm(
+                context.bot, user.id, hand_msg,
+                username=player["username"], chat_id=chat_id,
+                reply_markup=keyboards.dm_keyboard(),
+            )
 
         elif data == "action:pick":
             game = state_manager.get_game_or_raise(chat_id)
-            picked_card, group_dropped = game_engine.process_pick(game, user.id)
+            picked_card = game_engine.process_pick(game, user.id)
             state_manager.update_game(chat_id, game)
 
             player = state_manager.get_player(game, user.id)
             username = player["username"] if player else "Unknown"
 
-            if group_dropped:
-                group_msg = fmt.fmt_group_drop(username, group_dropped, len(player["hand"]))
-                await context.bot.send_message(chat_id=chat_id, text=group_msg)
-                if not player["hand"]:
-                    await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_player_hand_empty(username))
-                hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-                await send_dm(context.bot, user.id, hand_msg, username=username, chat_id=chat_id)
-                turn_msg = fmt.fmt_turn_announcement(game)
-                await context.bot.send_message(chat_id=chat_id, text=turn_msg, reply_markup=keyboards.turn_keyboard())
-            else:
-                await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_player_picked(username))
-                discard_msg = fmt.fmt_must_discard_dm(player, picked_card, game["joker_rank"])
-                await send_dm(context.bot, user.id, discard_msg, username=username, chat_id=chat_id)
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=fmt.fmt_player_picked(username),
+            )
+
+            # Send discard prompt with Drop button in group
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=fmt.fmt_discard_prompt(username),
+                reply_markup=keyboards.discard_keyboard(),
+            )
+
+            # Send hand via DM with navigation
+            discard_msg = fmt.fmt_must_discard_dm(player, picked_card, game["joker_rank"])
+            await send_dm(
+                context.bot, user.id, discard_msg,
+                username=username, chat_id=chat_id,
+                reply_markup=keyboards.dm_keyboard(),
+            )
 
         elif data == "action:draw":
             game = state_manager.get_game_or_raise(chat_id)
             if not game["deck"]:
-                await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_reshuffle_notice())
+                await context.bot.send_message(
+                    chat_id=chat_id, text=fmt.fmt_reshuffle_notice(),
+                )
             drawn_card = game_engine.process_draw(game, user.id)
             state_manager.update_game(chat_id, game)
 
             player = state_manager.get_player(game, user.id)
             username = player["username"] if player else "Unknown"
 
-            await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_player_drew(username))
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=fmt.fmt_player_drew(username),
+            )
+
+            # Send discard prompt with Drop button in group
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=fmt.fmt_discard_prompt(username),
+                reply_markup=keyboards.discard_keyboard(),
+            )
+
+            # Send hand via DM with navigation
             discard_msg = fmt.fmt_must_discard_dm(player, drawn_card, game["joker_rank"])
-            await send_dm(context.bot, user.id, discard_msg, username=username, chat_id=chat_id)
+            await send_dm(
+                context.bot, user.id, discard_msg,
+                username=username, chat_id=chat_id,
+                reply_markup=keyboards.dm_keyboard(),
+            )
 
         elif data == "action:declare":
             game = state_manager.get_game_or_raise(chat_id)
@@ -90,8 +119,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             round_scores = game_engine.process_declare(game, user.id)
             state_manager.update_game(chat_id, game)
 
-            await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_declaration(declarer_name))
-            await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_all_hands_revealed(game))
+            await context.bot.send_message(
+                chat_id=chat_id, text=fmt.fmt_declaration(declarer_name),
+            )
+            await context.bot.send_message(
+                chat_id=chat_id, text=fmt.fmt_all_hands_revealed(game),
+            )
 
             is_last = game_engine.is_game_over(game)
             result_msg = fmt.fmt_round_result(game, round_scores, declarer_name)
@@ -99,6 +132,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat_id=chat_id, text=result_msg,
                 reply_markup=keyboards.next_round_keyboard(is_last),
             )
+
+        elif data == "action:drop_prompt":
+            # Prompt the player to type /drop <card> in chat
+            game = state_manager.get_game_or_raise(chat_id)
+            player = game_engine.validate_active_player(game, user.id)
+
+            if game["turn_phase"] != "must_discard":
+                await query.answer(
+                    "⚠️ Pick a card or draw from the pile first!",
+                    show_alert=True,
+                )
+                return
+
+            username = player["username"]
+            example_card = player["hand"][0] if player["hand"] else "6H"
+            prompt = (
+                f"📝 {username}, type your drop command:\n"
+                f"/drop <card>  (e.g., /drop {example_card})"
+            )
+            await context.bot.send_message(chat_id=chat_id, text=prompt)
 
         elif data == "see_scores":
             game = state_manager.get_game_or_raise(chat_id)
@@ -120,10 +173,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             for player in game["players"]:
                 uid = player["user_id"]
                 hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-                await send_dm(context.bot, uid, hand_msg, username=player["username"], chat_id=chat_id)
+                await send_dm(
+                    context.bot, uid, hand_msg,
+                    username=player["username"], chat_id=chat_id,
+                    reply_markup=keyboards.dm_keyboard(),
+                )
 
             start_msg = fmt.fmt_game_starting(game)
-            await context.bot.send_message(chat_id=chat_id, text=start_msg, reply_markup=keyboards.turn_keyboard())
+            await context.bot.send_message(
+                chat_id=chat_id, text=start_msg,
+                reply_markup=keyboards.turn_keyboard(),
+            )
 
         elif data == "finish_game":
             game = state_manager.get_game_or_raise(chat_id)

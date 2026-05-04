@@ -27,6 +27,7 @@ from app.bot.commands import (
     cmd_declare,
     cmd_hand,
     cmd_scores,
+    cmd_debugstate,
     cmd_endgame,
     cmd_help,
     handle_unknown,
@@ -63,6 +64,7 @@ def main() -> None:
     app.add_handler(CommandHandler("declare", cmd_declare))
     app.add_handler(CommandHandler("hand", cmd_hand))
     app.add_handler(CommandHandler("scores", cmd_scores))
+    app.add_handler(CommandHandler("debugstate", cmd_debugstate))
     app.add_handler(CommandHandler("endgame", cmd_endgame))
     app.add_handler(CommandHandler("help", cmd_help))
 

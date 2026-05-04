@@ -218,7 +218,16 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
         cards_to_drop = [c.upper() for c in args]
+        
+        # Validation debug logs
+        logger.debug(f"[DROP] User {user.id} attempting to drop: {cards_to_drop}")
+        logger.debug(f"[DROP] Current phase: {game['turn_phase']}")
+        active_player = game['players'][game['current_turn_idx']]
+        logger.debug(f"[DROP] Active player ID: {active_player['user_id']}, Request user ID: {user.id}")
+        
         hand_empty = game_engine.process_drop(game, user.id, cards_to_drop)
+        logger.debug(f"[DROP] Drop successful! Hand empty: {hand_empty}")
+        
         state_manager.update_game(chat_id, game)
 
         player = state_manager.get_player(game, user.id)
@@ -294,13 +303,44 @@ async def cmd_hand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_scores(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /scores — Show current scores in group chat."""
+    """Handle /scores — Show current leaderboard."""
     chat_id = update.effective_chat.id
+    if not state_manager.game_exists(chat_id):
+        await update.message.reply_text("❌ No game is running here.")
+        return
 
+    game = state_manager.get_game(chat_id)
+    await update.message.reply_text(fmt.fmt_scores(game))
+
+
+async def cmd_debugstate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /debugstate — Print internal game state for debugging."""
+    chat_id = update.effective_chat.id
     try:
-        game = state_manager.get_game_or_raise(chat_id)
-        scores_msg = fmt.fmt_scores(game)
-        await update.message.reply_text(scores_msg)
+        if not state_manager.game_exists(chat_id):
+            await update.message.reply_text("❌ No game is running in this chat.")
+            return
+            
+        game = state_manager.get_game(chat_id)
+        
+        lines = [
+            "🛠 **INTERNAL GAME STATE DEBUG**",
+            f"Status: {game['status']}",
+            f"Round: {game['round_current']} / {game['rounds_total']}",
+            f"Phase: {game['turn_phase']}",
+            f"Current Turn Idx: {game['current_turn_idx']}",
+            f"Open Card: {game['discard_pile'][-1] if game['discard_pile'] else 'None'}",
+            f"Joker Rank: {game['joker_rank']}",
+            f"Deck Size: {len(game['deck'])}",
+            f"Discard Pile Size: {len(game['discard_pile'])}",
+            "--- Players ---"
+        ]
+        
+        for idx, p in enumerate(game['players']):
+            indicator = "▶️ " if idx == game['current_turn_idx'] else "   "
+            lines.append(f"{indicator}{p['username']} (ID: {p['user_id']}) — Hand: {p['hand']}")
+            
+        await update.message.reply_text("\n".join(lines))
     except GameException as e:
         await update.message.reply_text(e.message)
 

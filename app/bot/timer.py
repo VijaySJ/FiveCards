@@ -44,6 +44,14 @@ def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, game: dic
                     "is_startgame": is_startgame,
                 }
             )
+        
+        # Schedule the pin job immediately
+        context.job_queue.run_once(
+            pin_turn_job,
+            0,
+            chat_id=chat_id,
+            data={"message_id": message_id}
+        )
 
     context.job_queue.run_once(
         auto_drop_callback,
@@ -65,6 +73,35 @@ def cancel_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
     current_jobs = context.job_queue.get_jobs_by_name(job_name)
     for job in current_jobs:
         job.schedule_removal()
+
+async def pin_turn_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Pins the turn announcement message to the group chat."""
+    job = context.job
+    chat_id = job.chat_id
+    message_id = job.data["message_id"]
+    
+    try:
+        game = state_manager.get_game_or_raise(chat_id)
+        prev_pinned = game.get("pinned_message_id")
+        
+        if prev_pinned:
+            try:
+                await context.bot.unpin_chat_message(chat_id=chat_id, message_id=prev_pinned)
+            except Exception:
+                pass
+                
+        await context.bot.pin_chat_message(
+            chat_id=chat_id,
+            message_id=message_id,
+            disable_notification=True
+        )
+        game["pinned_message_id"] = message_id
+        state_manager.update_game(chat_id, game)
+    except GameException:
+        pass
+    except Exception as e:
+        logger.warning("Could not pin turn message: %s", e)
+
 
 async def update_timer_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Executed every 15 seconds to update the turn announcement message."""

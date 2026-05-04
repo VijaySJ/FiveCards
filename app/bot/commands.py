@@ -14,7 +14,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin
+from app.bot.helpers import send_dm, is_group_admin, get_group_link
 from app.config.settings import DEFAULT_ROUNDS, MAX_ROUNDS
 from app.core.exceptions import GameException
 
@@ -95,13 +95,14 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         game_engine.deal_initial_cards(game)
         state_manager.update_game(chat_id, game)
 
+        group_link = await get_group_link(context.bot, chat_id)
         for player in game["players"]:
             uid = player["user_id"]
             hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
             await send_dm(
                 context.bot, uid, hand_msg,
                 username=player["username"], chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(),
+                reply_markup=keyboards.dm_keyboard(group_link),
             )
 
         start_msg = fmt.fmt_game_starting(game)
@@ -124,20 +125,18 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
-        await update.message.reply_text(fmt.fmt_player_picked(username))
-
-        # Send discard prompt with Drop button
         await update.message.reply_text(
-            fmt.fmt_discard_prompt(username),
-            reply_markup=keyboards.discard_keyboard(),
+            fmt.fmt_player_picked(username),
+            reply_markup=keyboards.turn_keyboard(),
         )
 
         # Send hand via DM with navigation
         discard_msg = fmt.fmt_must_discard_dm(player, picked_card, game["joker_rank"])
+        group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
             context.bot, user.id, discard_msg,
             username=username, chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(),
+            reply_markup=keyboards.dm_keyboard(group_link),
         )
 
         logger.info("/pick by %s in chat %d", username, chat_id)
@@ -161,20 +160,18 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
-        await update.message.reply_text(fmt.fmt_player_drew(username))
-
-        # Send discard prompt with Drop button
         await update.message.reply_text(
-            fmt.fmt_discard_prompt(username),
-            reply_markup=keyboards.discard_keyboard(),
+            fmt.fmt_player_drew(username),
+            reply_markup=keyboards.turn_keyboard(),
         )
 
         # Send hand via DM with navigation
         discard_msg = fmt.fmt_must_discard_dm(player, drawn_card, game["joker_rank"])
+        group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
             context.bot, user.id, discard_msg,
             username=username, chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(),
+            reply_markup=keyboards.dm_keyboard(group_link),
         )
         logger.info("/draw by %s in chat %d", username, chat_id)
     except GameException as e:
@@ -191,10 +188,13 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         args = context.args or []
         if not args and update.message and update.message.text:
-            parts = update.message.text.split()
-            # Handle plain /drop 6H format
-            if len(parts) > 1 and parts[0].lower() == "/drop":
-                args = parts[1:]
+            text = update.message.text
+            lower_text = text.lower()
+            if "/drop" in lower_text:
+                drop_idx = lower_text.index("/drop")
+                after_drop = text[drop_idx + len("/drop"):].strip()
+                if after_drop:
+                    args = after_drop.split()
 
         if not args:
             await update.message.reply_text("❌ Usage: /drop <card> [card2] ...\nExample: /drop 6H  or  /drop 6H 6D 6C")
@@ -213,10 +213,11 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text(fmt.fmt_player_hand_empty(username))
 
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
+        group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
             context.bot, user.id, hand_msg,
             username=username, chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(),
+            reply_markup=keyboards.dm_keyboard(group_link),
         )
 
         turn_msg = fmt.fmt_turn_announcement(game)
@@ -260,10 +261,11 @@ async def cmd_hand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player_or_raise(game, user.id)
 
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
+        group_link = await get_group_link(context.bot, chat_id)
         sent = await send_dm(
             context.bot, user.id, hand_msg,
             username=player["username"], chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(),
+            reply_markup=keyboards.dm_keyboard(group_link),
         )
         if sent:
             await update.message.reply_text("📬 Hand sent to your DM!")

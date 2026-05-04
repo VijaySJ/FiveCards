@@ -14,7 +14,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin
+from app.bot.helpers import send_dm, is_group_admin, get_group_link
 from app.core.exceptions import GameException
 
 logger = logging.getLogger(__name__)
@@ -45,10 +45,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             game = state_manager.get_game_or_raise(chat_id)
             player = state_manager.get_player_or_raise(game, user.id)
             hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
+            group_link = await get_group_link(context.bot, chat_id)
             await send_dm(
                 context.bot, user.id, hand_msg,
                 username=player["username"], chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(),
+                reply_markup=keyboards.dm_keyboard(group_link),
             )
 
         elif data == "action:pick":
@@ -62,21 +63,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_player_picked(username),
-            )
-
-            # Send discard prompt with Drop button in group
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=fmt.fmt_discard_prompt(username),
-                reply_markup=keyboards.discard_keyboard(),
+                reply_markup=keyboards.turn_keyboard(),
             )
 
             # Send hand via DM with navigation
             discard_msg = fmt.fmt_must_discard_dm(player, picked_card, game["joker_rank"])
+            group_link = await get_group_link(context.bot, chat_id)
             await send_dm(
                 context.bot, user.id, discard_msg,
                 username=username, chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(),
+                reply_markup=keyboards.dm_keyboard(group_link),
             )
 
         elif data == "action:draw":
@@ -94,21 +90,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_player_drew(username),
-            )
-
-            # Send discard prompt with Drop button in group
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=fmt.fmt_discard_prompt(username),
-                reply_markup=keyboards.discard_keyboard(),
+                reply_markup=keyboards.turn_keyboard(),
             )
 
             # Send hand via DM with navigation
             discard_msg = fmt.fmt_must_discard_dm(player, drawn_card, game["joker_rank"])
+            group_link = await get_group_link(context.bot, chat_id)
             await send_dm(
                 context.bot, user.id, discard_msg,
                 username=username, chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(),
+                reply_markup=keyboards.dm_keyboard(group_link),
             )
 
         elif data == "action:declare":
@@ -133,25 +124,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=keyboards.next_round_keyboard(is_last),
             )
 
-        elif data == "action:drop_prompt":
-            # Prompt the player to type /drop <card> in chat
-            game = state_manager.get_game_or_raise(chat_id)
-            player = game_engine.validate_active_player(game, user.id)
 
-            if game["turn_phase"] != "must_discard":
-                await query.answer(
-                    "⚠️ Pick a card or draw from the pile first!",
-                    show_alert=True,
-                )
-                return
-
-            username = player["username"]
-            example_card = player["hand"][0] if player["hand"] else "6H"
-            prompt = (
-                f"📝 {username}, type your drop command:\n"
-                f"/drop <card>  (e.g., /drop {example_card})"
-            )
-            await context.bot.send_message(chat_id=chat_id, text=prompt)
 
         elif data == "see_scores":
             game = state_manager.get_game_or_raise(chat_id)
@@ -171,13 +144,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             game_engine.start_next_round(game)
             state_manager.update_game(chat_id, game)
 
+            group_link = await get_group_link(context.bot, chat_id)
             for player in game["players"]:
                 uid = player["user_id"]
                 hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
                 await send_dm(
                     context.bot, uid, hand_msg,
                     username=player["username"], chat_id=chat_id,
-                    reply_markup=keyboards.dm_keyboard(),
+                    reply_markup=keyboards.dm_keyboard(group_link),
                 )
 
             start_msg = fmt.fmt_game_starting(game)

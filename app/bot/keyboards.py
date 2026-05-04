@@ -4,30 +4,30 @@ keyboards.py — InlineKeyboardMarkup builders for the 5 Cards game bot.
 All functions return telegram InlineKeyboardMarkup objects ready to be
 attached to bot messages.
 
-Keyboards are split by turn phase:
-  - turn_keyboard()    → choose_action phase (Pick / Draw / Declare)
-  - discard_keyboard() → must_discard phase  (Drop the Card)
-Both include navigation buttons for group ↔ DM switching.
+All action buttons are shown in a single turn_keyboard() layout.
+The game engine handles phase validation and returns appropriate errors
+if a button is pressed out of sequence.
 """
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.config.settings import BOT_USERNAME, GROUP_LINK
+from app.config.settings import BOT_USERNAME
 
 
 def turn_keyboard() -> InlineKeyboardMarkup:
-    """Build the keyboard for the 'choose_action' phase.
+    """Build the main turn keyboard with all action buttons.
 
-    Shown at the start of each turn. Only the active player's
-    button presses will be accepted by the callback handler.
+    All buttons are shown together in one message. The game engine
+    validates the current phase and returns contextual errors if
+    a button is pressed out of sequence.
 
     Buttons:
       Row 1: [🃏 Pick Open Card]  [🎴 Draw from Pile]
-      Row 2: [🏳️ Declare]
+      Row 2: [🏳️ Declare]  [⏬ Drop the Card]
       Row 3: [🃏 Card In Hand →]
 
     Returns:
-        InlineKeyboardMarkup with turn action buttons.
+        InlineKeyboardMarkup with all turn action buttons.
     """
     bot_dm_link = f"https://t.me/{BOT_USERNAME}"
     keyboard = [
@@ -37,6 +37,7 @@ def turn_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
+            InlineKeyboardButton("⏬ Drop the Card", switch_inline_query_current_chat="/drop "),
         ],
         [
             InlineKeyboardButton("🃏 Card In Hand →", url=bot_dm_link),
@@ -45,34 +46,14 @@ def turn_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def discard_keyboard() -> InlineKeyboardMarkup:
-    """Build the keyboard for the 'must_discard' phase.
-
-    Shown after a player picks or draws a card.
-
-    Buttons:
-      Row 1: [⏬ Drop the Card]
-      Row 2: [🃏 Card In Hand →]
-
-    Returns:
-        InlineKeyboardMarkup with the drop prompt button.
-    """
-    bot_dm_link = f"https://t.me/{BOT_USERNAME}"
-    keyboard = [
-        [
-            InlineKeyboardButton("⏬ Drop the Card", callback_data="action:drop_prompt"),
-        ],
-        [
-            InlineKeyboardButton("🃏 Card In Hand →", url=bot_dm_link),
-        ],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def dm_keyboard() -> InlineKeyboardMarkup:
+def dm_keyboard(group_link: str) -> InlineKeyboardMarkup:
     """Build the keyboard shown in bot DM messages.
 
-    Provides a quick link back to the group chat.
+    Provides a quick link back to the group chat where the game
+    is being played. The link is dynamically determined.
+
+    Args:
+        group_link: URL to the group chat (dynamic, from chat info).
 
     Buttons:
       [🔙 Go Back to Play Area]
@@ -81,7 +62,7 @@ def dm_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardMarkup with a group-link button.
     """
     keyboard = [
-        [InlineKeyboardButton("🔙 Go Back to Play Area", url=GROUP_LINK)],
+        [InlineKeyboardButton("🔙 Go Back to Play Area", url=group_link)],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -139,21 +120,4 @@ def next_round_keyboard(is_last_round: bool) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🔄 Next Round", callback_data="next_round"),
             ],
         ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def drop_reminder_keyboard() -> InlineKeyboardMarkup:
-    """Build a small helper keyboard shown when player must discard.
-
-    Provides a reminder — actual drop is done via /drop command.
-
-    Buttons:
-      [📋 View My Hand]
-
-    Returns:
-        InlineKeyboardMarkup with a hand-view button.
-    """
-    keyboard = [
-        [InlineKeyboardButton("📋 View My Hand", callback_data="view_hand")],
-    ]
     return InlineKeyboardMarkup(keyboard)

@@ -67,3 +67,39 @@ async def is_group_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
         logger.warning("Failed to check admin status for user %d in chat %d: %s", user_id, chat_id, e)
         return False
 
+
+async def get_group_link(bot: Bot, chat_id: int) -> str:
+    """Get the group's URL dynamically from Telegram.
+
+    Tries in order:
+      1. Public username → t.me/<username>
+      2. Existing invite link from chat info
+      3. Fallback: t.me/c/<chat_id> deep link
+
+    Args:
+        bot: Telegram Bot instance.
+        chat_id: Group chat ID.
+
+    Returns:
+        URL string for the group chat.
+    """
+    try:
+        chat = await bot.get_chat(chat_id)
+        # Public group with username
+        if chat.username:
+            return f"https://t.me/{chat.username}"
+        # Private group with existing invite link
+        if chat.invite_link:
+            return chat.invite_link
+    except Exception as e:
+        logger.warning("Failed to get chat info for %d: %s", chat_id, e)
+
+    # Fallback: Telegram deep link format for private groups
+    # Remove the -100 prefix that Telegram adds to supergroup IDs
+    clean_id = str(chat_id)
+    if clean_id.startswith("-100"):
+        clean_id = clean_id[4:]
+    elif clean_id.startswith("-"):
+        clean_id = clean_id[1:]
+    return f"https://t.me/c/{clean_id}/1"
+

@@ -15,6 +15,7 @@ from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
 from app.bot.helpers import send_dm, is_group_admin, get_group_link
+from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.config.settings import DEFAULT_ROUNDS, MAX_ROUNDS
 from app.core.exceptions import GameException
 
@@ -107,6 +108,8 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
         start_msg = fmt.fmt_game_starting(game)
         await update.message.reply_text(start_msg, reply_markup=keyboards.turn_keyboard())
+        
+        start_turn_timer(context, chat_id, game)
         logger.info("/startgame in chat %d — %d players", chat_id, len(game["players"]))
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -222,6 +225,8 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         turn_msg = fmt.fmt_turn_announcement(game)
         await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard())
+        
+        start_turn_timer(context, chat_id, game)
         logger.info("/drop %s by %s in chat %d", cards_to_drop, username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -239,6 +244,7 @@ async def cmd_declare(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         round_scores = game_engine.process_declare(game, user.id)
         state_manager.update_game(chat_id, game)
+        cancel_turn_timer(context, chat_id)
 
         await update.message.reply_text(fmt.fmt_declaration(declarer_name))
         await update.message.reply_text(fmt.fmt_all_hands_revealed(game))
@@ -299,6 +305,7 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         leaderboard = game_engine.end_game(game)
         state_manager.delete_game(chat_id)
+        cancel_turn_timer(context, chat_id)
         await update.message.reply_text(leaderboard)
         logger.info("/endgame by admin in chat %d", chat_id)
     except GameException as e:

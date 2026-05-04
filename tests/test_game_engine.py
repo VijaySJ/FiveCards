@@ -183,3 +183,60 @@ def test_valid_multi_drop():
     assert "6H" not in game["players"][0]["hand"]
     assert "6D" not in game["players"][0]["hand"]
     assert len(game["players"][0]["hand"]) == 4
+
+
+def test_process_timeout_during_choose_action():
+    from app.core.game_engine import process_timeout
+    game = _make_test_game(3)
+    game["players"][0]["hand"] = ["2H", "3D"]
+    game["deck"] = ["4S"]
+    game["discard_pile"] = ["AH"]
+    game["turn_phase"] = "choose_action"
+    game["current_turn_idx"] = 0
+
+    drawn, dropped, hand_empty = process_timeout(game, 1)
+    assert drawn == "4S"
+    assert len(dropped) == 1
+    assert game["current_turn_idx"] == 1
+    assert len(game["players"][0]["hand"]) == 2  # 2 + 1 drawn - 1 dropped
+
+
+def test_process_timeout_during_must_discard():
+    from app.core.game_engine import process_timeout
+    game = _make_test_game(3)
+    game["players"][0]["hand"] = ["2H", "3D", "4S"]
+    game["turn_phase"] = "must_discard"
+    game["current_turn_idx"] = 0
+
+    drawn, dropped, hand_empty = process_timeout(game, 1)
+    assert drawn is None
+    assert len(dropped) == 1
+    assert game["current_turn_idx"] == 1
+    assert len(game["players"][0]["hand"]) == 2
+
+
+def test_direct_drop_matches_open_card():
+    game = _make_test_game(3)
+    game["players"][0]["hand"] = ["9H", "3D"]
+    game["discard_pile"] = ["9S"]
+    game["turn_phase"] = "choose_action"
+    game["current_turn_idx"] = 0
+
+    hand_empty = process_drop(game, 1, ["9H"])
+    
+    assert not hand_empty
+    assert len(game["players"][0]["hand"]) == 1
+    assert game["discard_pile"][-1] == "9H"
+    assert game["current_turn_idx"] == 1
+
+
+def test_direct_drop_invalid_rank():
+    game = _make_test_game(3)
+    game["players"][0]["hand"] = ["8H", "3D"]
+    game["discard_pile"] = ["9S"]
+    game["turn_phase"] = "choose_action"
+    game["current_turn_idx"] = 0
+
+    with pytest.raises(InvalidActionError, match="matches the open card"):
+        process_drop(game, 1, ["8H"])
+

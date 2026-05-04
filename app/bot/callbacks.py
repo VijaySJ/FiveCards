@@ -15,6 +15,7 @@ from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
 from app.bot.helpers import send_dm, is_group_admin, get_group_link
+from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.core.exceptions import GameException
 
 logger = logging.getLogger(__name__)
@@ -159,6 +160,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat_id=chat_id, text=start_msg,
                 reply_markup=keyboards.turn_keyboard(),
             )
+            
+            start_turn_timer(context, chat_id, game)
 
         elif data == "finish_game":
             game = state_manager.get_game_or_raise(chat_id)
@@ -169,6 +172,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             leaderboard = game_engine.end_game(game)
             state_manager.delete_game(chat_id)
+            cancel_turn_timer(context, chat_id)
             await context.bot.send_message(chat_id=chat_id, text=leaderboard)
 
         else:

@@ -269,36 +269,41 @@ def fmt_reshuffle_notice() -> str:
 
 
 def fmt_help() -> str:
-    """Format the /help command response."""
-    return r"""🃏 *5 CARDS — Help \& Rules* 🃏
-
-*Commands:*
-/newgame \\[rounds\\] — Create a new game \\(default 3 rounds\\)
-/join — Join the game lobby
-/startgame — Start the game \\(admin only\\)
-/pick — Pick the open \\(top discard\\) card
-/draw — Draw from the middle pile
-/drop \<cards\> — Discard card\\(s\\) \\(e\\.g\\. /drop 6H or /drop 6H 6D\\)
-/declare — Declare \\(attempt to win the round\\)
-/hand — View your hand \\(sent via DM\\)
-/scores — View current scores
-/endgame — End the game \\(admin only\\)
-/help — Show this help message
-
-*Turn Flow:*
-1\\. Pick open card OR Draw from pile OR Declare
-2\\. After pick/draw: drop one or more cards \\(same rank\\)
-
-*Scoring:*
-A\\=1, 2\\-10\\=face value, J\\=11, Q\\=12, K\\=13
-Jokers \\& joker\\-rank cards \\= 0 pts
-Lowest total score wins\\!
-
-*Declaration:*
-• Your score \< everyone → You get 0 pts\\!
-• Someone has lower → You get 80 pts penalty
-• Someone ties → Both get 0 \\(unless penalty applies\\)
-• Empty hand → Always 0 pts"""
+    """Format the /help command response (plain text, no parse_mode needed)."""
+    lines = [
+        "╔═══════════════════════════╗",
+        "║  🃏  5 CARDS — Help & Rules  🃏",
+        "╚═══════════════════════════╝",
+        "",
+        "📋 COMMANDS:",
+        "  /newgame [rounds] — Create a new game (default 3 rounds)",
+        "  /join — Join the game lobby",
+        "  /startgame — Start the game (admin only)",
+        "  /pick — Pick the open (top discard) card",
+        "  /draw — Draw from the middle pile",
+        "  /drop <cards> — Discard card(s) (e.g. /drop 6H)",
+        "  /declare — Declare (attempt to win the round)",
+        "  /hand — View your hand (sent via DM)",
+        "  /scores — View current scores",
+        "  /endgame — End the game (admin only)",
+        "  /help — Show this help message",
+        "",
+        "🔄 TURN FLOW:",
+        "  1. Pick open card OR Draw from pile OR Declare",
+        "  2. After pick/draw → drop one or more cards (same rank)",
+        "",
+        "🎯 SCORING:",
+        "  A=1, 2-10=face value, J=11, Q=12, K=13",
+        "  Jokers & joker-rank cards = 0 pts",
+        "  Lowest total score wins!",
+        "",
+        "🏳️ DECLARATION:",
+        "  • Your score < everyone → You get 0 pts!",
+        "  • Someone has lower → You get 80 pts penalty",
+        "  • Someone ties → Both get 0 (unless penalty applies)",
+        "  • Empty hand → Always 0 pts",
+    ]
+    return "\n".join(lines)
 
 
 def fmt_dm_warning(username: str, bot_username: str) -> str:

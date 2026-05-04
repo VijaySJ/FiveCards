@@ -303,16 +303,15 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help — Show command list and rules summary."""
-    await update.message.reply_text(fmt.fmt_help(), parse_mode="MarkdownV2")
+    await update.message.reply_text(fmt.fmt_help())
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start — Welcome message when user starts the bot in DM."""
     await update.message.reply_text(
-        "🃏 Welcome to *5 Cards*\\!\n\n"
-        "Add me to a group and use /newgame to start playing\\.\n"
-        "Use /help for commands and rules\\.",
-        parse_mode="MarkdownV2",
+        "🃏 Welcome to 5 Cards!\n\n"
+        "Add me to a group and use /newgame to start playing.\n"
+        "Use /help for commands and rules."
     )
 
 

@@ -155,13 +155,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     reply_markup=keyboards.dm_keyboard(group_link),
                 )
 
-            start_msg = fmt.fmt_game_starting(game)
-            await context.bot.send_message(
+            start_msg = fmt.fmt_game_starting(game, 60)
+            msg = await context.bot.send_message(
                 chat_id=chat_id, text=start_msg,
                 reply_markup=keyboards.turn_keyboard(game),
             )
             
-            start_turn_timer(context, chat_id, game)
+            start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=True)
 
         elif data == "finish_game":
             game = state_manager.get_game_or_raise(chat_id)

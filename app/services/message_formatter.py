@@ -37,7 +37,7 @@ def fmt_player_joined(username: str, player_count: int) -> str:
     return f"✅ {username} joined! ({player_count} players)"
 
 
-def fmt_game_starting(game: dict) -> str:
+def fmt_game_starting(game: dict, time_left: int = 60) -> str:
     """Format the 'game starting' announcement shown after deal."""
     open_card = game["discard_pile"][-1] if game["discard_pile"] else "?"
     joker_rank = game["joker_rank"]
@@ -54,14 +54,14 @@ def fmt_game_starting(game: dict) -> str:
         "  👥 Player Cards:",
         f"  {fmt_card_counts(game)}",
         "",
-        f"  ▶️ {first_player['username']}'s turn!",
+        f"  ▶️ {first_player['username']}'s turn! (⏳ {time_left}s)",
         "",
         "  📬 Check your DM for your cards!",
     ]
     return "\n".join(lines)
 
 
-def fmt_turn_announcement(game: dict) -> str:
+def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     """Format the turn announcement shown in group chat."""
     active = game["players"][game["current_turn_idx"]]
     open_card = game["discard_pile"][-1] if game["discard_pile"] else "—"
@@ -69,7 +69,7 @@ def fmt_turn_announcement(game: dict) -> str:
 
     lines = [
         "┌─────────────────────────┐",
-        f"│   ▶️  {active['username']}'s Turn (⏳ 60s)",
+        f"│   ▶️  {active['username']}'s Turn (⏳ {time_left}s)",
         "└─────────────────────────┘",
         "",
         f"  🃏 Open Card:  {format_card(open_card)}",

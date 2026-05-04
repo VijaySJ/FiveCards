@@ -106,10 +106,10 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 reply_markup=keyboards.dm_keyboard(group_link),
             )
 
-        start_msg = fmt.fmt_game_starting(game)
-        await update.message.reply_text(start_msg, reply_markup=keyboards.turn_keyboard(game))
+        start_msg = fmt.fmt_game_starting(game, 60)
+        msg = await update.message.reply_text(start_msg, reply_markup=keyboards.turn_keyboard(game))
         
-        start_turn_timer(context, chat_id, game)
+        start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=True)
         logger.info("/startgame in chat %d — %d players", chat_id, len(game["players"]))
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -223,10 +223,10 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        turn_msg = fmt.fmt_turn_announcement(game)
-        await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
+        turn_msg = fmt.fmt_turn_announcement(game, 60)
+        msg = await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
         
-        start_turn_timer(context, chat_id, game)
+        start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
         logger.info("/drop %s by %s in chat %d", cards_to_drop, username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)

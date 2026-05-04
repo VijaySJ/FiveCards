@@ -196,9 +196,9 @@ def test_process_timeout_during_choose_action():
 
     drawn, dropped, hand_empty = process_timeout(game, 1)
     assert drawn == "4S"
-    assert len(dropped) == 1
+    assert len(dropped) == 0
     assert game["current_turn_idx"] == 1
-    assert len(game["players"][0]["hand"]) == 2  # 2 + 1 drawn - 1 dropped
+    assert len(game["players"][0]["hand"]) == 3  # 2 + 1 drawn
 
 
 def test_process_timeout_during_must_discard():
@@ -209,17 +209,17 @@ def test_process_timeout_during_must_discard():
     game["current_turn_idx"] = 0
 
     drawn, dropped, hand_empty = process_timeout(game, 1)
-    assert drawn is None
+    assert drawn is not None
     assert len(dropped) == 1
     assert game["current_turn_idx"] == 1
-    assert len(game["players"][0]["hand"]) == 2
+    assert len(game["players"][0]["hand"]) == 3
 
 
 def test_direct_drop_matches_open_card():
     game = _make_test_game(3)
     game["players"][0]["hand"] = ["9H", "3D"]
     game["discard_pile"] = ["9S"]
-    game["turn_phase"] = "choose_action"
+    game["turn_phase"] = "must_discard"
     game["current_turn_idx"] = 0
 
     hand_empty = process_drop(game, 1, ["9H"])
@@ -234,9 +234,14 @@ def test_direct_drop_invalid_rank():
     game = _make_test_game(3)
     game["players"][0]["hand"] = ["8H", "3D"]
     game["discard_pile"] = ["9S"]
-    game["turn_phase"] = "choose_action"
+    game["turn_phase"] = "must_discard"
     game["current_turn_idx"] = 0
 
-    with pytest.raises(InvalidActionError, match="matches the open card"):
-        process_drop(game, 1, ["8H"])
+    hand_empty = process_drop(game, 1, ["8H"])
+    
+    assert not hand_empty
+    assert len(game["players"][0]["hand"]) == 1
+    assert game["discard_pile"][-1] == "8H"
+    assert game["turn_phase"] == "choose_action"
+    assert game["current_turn_idx"] == 0
 

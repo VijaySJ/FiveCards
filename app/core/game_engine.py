@@ -195,7 +195,7 @@ def process_pick(game: dict, player_id: int) -> str:
     player = validate_active_player(game, player_id)
 
     if game["turn_phase"] != "choose_action":
-        raise WrongPhaseError("must_discard", action="pick")
+        raise WrongPhaseError("choose_action", action="pick")
     if not game["discard_pile"]:
         raise InvalidActionError("❌ Discard pile is empty!")
 
@@ -222,7 +222,7 @@ def process_draw(game: dict, player_id: int) -> str:
     player = validate_active_player(game, player_id)
 
     if game["turn_phase"] != "choose_action":
-        raise WrongPhaseError("must_discard", action="draw")
+        raise WrongPhaseError("choose_action", action="draw")
 
     if not game["deck"]:
         _reshuffle_discard_to_deck(game)
@@ -249,15 +249,8 @@ def process_drop(game: dict, player_id: int, cards_to_drop: list[str]) -> bool:
     """
     player = validate_active_player(game, player_id)
 
-    if game["turn_phase"] == "choose_action":
-        # Direct drop (slip) rule: allowed only if dropping matches the top open card rank
-        open_card = game["discard_pile"][-1]
-        open_rank = card_utils.get_card_rank(open_card)
-        drop_ranks = set(card_utils.get_card_rank(c.upper()) for c in cards_to_drop)
-        if len(drop_ranks) != 1 or drop_ranks.pop() != open_rank:
-            raise InvalidActionError("❌ You must pick a card first! Or drop a card that matches the open card's rank.")
-    elif game["turn_phase"] != "must_discard":
-        raise WrongPhaseError("choose_action", action="drop")
+    if game["turn_phase"] != "must_discard":
+        raise WrongPhaseError("must_discard", action="drop")
     if not cards_to_drop:
         raise InvalidActionError("❌ You must specify at least one card to drop.")
 
@@ -280,43 +273,69 @@ def process_drop(game: dict, player_id: int, cards_to_drop: list[str]) -> bool:
 
     logger.info("Player %s dropped %s, %d cards remaining", player["username"], cards_to_drop, len(player["hand"]))
 
-    hand_empty = len(player["hand"]) == 0
+    open_card = game["discard_pile"][-2] if len(game["discard_pile"]) > 1 else None
+    
+    is_direct_drop = False
+    if open_card:
+        open_rank = card_utils.get_card_rank(open_card)
+        drop_ranks = set(card_utils.get_card_rank(c.upper()) for c in cards_to_drop)
+        if len(drop_ranks) == 1 and drop_ranks.pop() == open_rank:
+            is_direct_drop = True
+
     game["picked_card"] = None
-    advance_turn(game)
-    return hand_empty
+    if is_direct_drop or not player["hand"]:
+        advance_turn(game)
+    else:
+        game["turn_phase"] = "choose_action"
+        
+    return len(player["hand"]) == 0
 
 
 def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str], bool]:
     """Handle a player timing out their turn.
     
-    If they haven't picked, draw a card for them. Then automatically drop a random card.
+    If they are in must_discard, auto-drop a card. If it doesn't match, auto-draw.
+    If they are in choose_action, auto-draw.
     
     Returns:
         (drawn_card, dropped_cards, hand_empty)
     """
     player = validate_active_player(game, player_id)
     drawn_card = None
+    dropped_cards = []
     
+    if game["turn_phase"] == "must_discard":
+        card_to_drop = random.choice(player["hand"])
+        open_card = game["discard_pile"][-1] if game["discard_pile"] else None
+        
+        player["hand"].remove(card_to_drop)
+        game["discard_pile"].append(card_to_drop)
+        dropped_cards = [card_to_drop]
+        logger.info("Timeout: Player %s auto-dropped %s", player["username"], card_to_drop)
+        
+        is_direct_drop = False
+        if open_card:
+            open_rank = card_utils.get_card_rank(open_card)
+            drop_rank = card_utils.get_card_rank(card_to_drop)
+            if drop_rank == open_rank:
+                is_direct_drop = True
+                
+        if is_direct_drop or not player["hand"]:
+            advance_turn(game)
+            return None, dropped_cards, not player["hand"]
+        else:
+            game["turn_phase"] = "choose_action"
+            
     if game["turn_phase"] == "choose_action":
         if not game["deck"]:
             _reshuffle_discard_to_deck(game)
         drawn_card = game["deck"].pop(0)
         player["hand"].append(drawn_card)
         logger.info("Timeout: Player %s auto-drew %s", player["username"], drawn_card)
-        game["turn_phase"] = "must_discard"
+        advance_turn(game)
         
-    # Auto drop a random card
-    random_drop = random.choice(player["hand"])
-    player["hand"].remove(random_drop)
-    game["discard_pile"].append(random_drop)
-    
-    logger.info("Timeout: Player %s auto-dropped %s", player["username"], random_drop)
-    
-    hand_empty = len(player["hand"]) == 0
     game["picked_card"] = None
-    advance_turn(game)
-    
-    return drawn_card, [random_drop], hand_empty
+    return drawn_card, dropped_cards, not player["hand"]
 
 
 def process_declare(game: dict, player_id: int) -> dict[int, int]:

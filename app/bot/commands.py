@@ -181,6 +181,20 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(e.message)
 
 
+async def intercept_mention_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Robustly catch /drop commands inside normal text messages (like bot mentions)."""
+    if not update.effective_message or not update.effective_message.text:
+        return
+    text = update.effective_message.text.lower()
+    
+    # If it starts with /drop, CommandHandler handles it in group 0
+    if text.startswith("/drop"):
+        return
+        
+    if "/drop" in text:
+        await cmd_drop(update, context)
+
+
 async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /drop <card1> [card2] ... — Discard card(s)."""
     chat_id = update.effective_chat.id

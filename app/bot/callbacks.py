@@ -14,7 +14,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm
+from app.bot.helpers import send_dm, is_group_admin
 from app.core.exceptions import GameException
 
 logger = logging.getLogger(__name__)
@@ -160,8 +160,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         elif data == "next_round":
             game = state_manager.get_game_or_raise(chat_id)
-            if game["admin_id"] != user.id:
-                await query.answer("🔒 Only the admin can start the next round.", show_alert=True)
+            is_admin = await is_group_admin(context.bot, chat_id, user.id)
+            if game["admin_id"] != user.id and not is_admin:
+                await query.answer("🔒 Only the game creator or group admins can start the next round.", show_alert=True)
                 return
             if game_engine.is_game_over(game):
                 await query.answer("🏁 All rounds completed!", show_alert=True)
@@ -187,8 +188,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         elif data == "finish_game":
             game = state_manager.get_game_or_raise(chat_id)
-            if game["admin_id"] != user.id:
-                await query.answer("🔒 Only the admin can finish the game.", show_alert=True)
+            is_admin = await is_group_admin(context.bot, chat_id, user.id)
+            if game["admin_id"] != user.id and not is_admin:
+                await query.answer("🔒 Only the game creator or group admins can finish the game.", show_alert=True)
                 return
 
             leaderboard = game_engine.end_game(game)

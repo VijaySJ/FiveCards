@@ -14,7 +14,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm
+from app.bot.helpers import send_dm, is_group_admin
 from app.config.settings import DEFAULT_ROUNDS, MAX_ROUNDS
 from app.core.exceptions import GameException
 
@@ -81,8 +81,9 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         game = state_manager.get_game_or_raise(chat_id)
 
-        if game["admin_id"] != user.id:
-            await update.message.reply_text("🔒 Only the game admin can start the game.")
+        is_admin = await is_group_admin(context.bot, chat_id, user.id)
+        if game["admin_id"] != user.id and not is_admin:
+            await update.message.reply_text("🔒 Only the game creator or group admins can start the game.")
             return
         if game["status"] != "waiting":
             await update.message.reply_text("❌ Game has already started!")
@@ -289,8 +290,9 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         game = state_manager.get_game_or_raise(chat_id)
-        if game["admin_id"] != user.id:
-            await update.message.reply_text("🔒 Only the game admin can end the game.")
+        is_admin = await is_group_admin(context.bot, chat_id, user.id)
+        if game["admin_id"] != user.id and not is_admin:
+            await update.message.reply_text("🔒 Only the game creator or group admins can end the game.")
             return
 
         leaderboard = game_engine.end_game(game)

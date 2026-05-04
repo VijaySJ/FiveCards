@@ -47,3 +47,23 @@ async def send_dm(
     except Exception as e:
         logger.error("Failed to DM user %d: %s", user_id, e)
         return False
+
+
+async def is_group_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
+    """Check if a user is the group owner or an administrator.
+
+    Args:
+        bot: Telegram Bot instance.
+        chat_id: Group chat ID.
+        user_id: User ID to check.
+
+    Returns:
+        True if the user is the group creator or an administrator.
+    """
+    try:
+        member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+        return member.status in ("creator", "administrator")
+    except Exception as e:
+        logger.warning("Failed to check admin status for user %d in chat %d: %s", user_id, chat_id, e)
+        return False
+

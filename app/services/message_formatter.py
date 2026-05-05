@@ -86,21 +86,24 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     round_no = game["round_current"]
     total_rounds = game["rounds_total"]
 
-    scores_line = " | ".join(
-        f"{p['username']}: {p['total_score']}pts"
+    player_lines = "\n".join(
+        f"  👤 {p['username']:<12} {'🎴' * min(len(p['hand']), 5)}{'…' if len(p['hand']) > 5 else ''}  ({len(p['hand'])}🃏 · {p['total_score']}pts)"
         for p in game["players"]
     )
 
     return (
-        f"🎮 Round {round_no}/{total_rounds}\n"
-        f"━" * 19 + "\n"
-        f"📤 Open Card  : {open_display}\n"
-        f"🃏 Joker Rank : {joker_rank} (= 0 pts)\n"
-        f"━" * 19 + "\n"
-        f"▶️ {active['username']}'s Turn  ⏱ {time_left}s\n"
-        f"📌 Drop a card first!\n"
-        f"━" * 19 + "\n"
-        f"📊 {scores_line}"
+        f"╔════════════════════════╗\n"
+        f"║  🎮  5 CARDS  —  Round {round_no}/{total_rounds}  ║\n"
+        f"╚════════════════════════╝\n"
+        f"\n"
+        f"📤  Open Card  ›  {open_display}\n"
+        f"🃏  Joker Rank ›  {joker_rank}  (= 0 pts)\n"
+        f"\n"
+        f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        f"▶️  {active['username']}'s Turn   ⏱ {time_left}s\n"
+        f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        f"\n"
+        f"👥 Players & Scores:\n{player_lines}"
     )
 
 

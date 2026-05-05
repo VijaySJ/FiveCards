@@ -59,38 +59,15 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
         return
 
     cancel_turn_timer(context, chat_id)
-    
+
     round_num = game["round_current"]
     player_id = game["players"][turn_idx]["user_id"]
-    
     job_name = f"timer_{chat_id}"
-    
-    # Schedule updates at 15s, 30s, 45s if we have a message to edit
-    if message_id:
-        for elapsed in (15, 30, 45):
-            time_left = TURN_TIMEOUT_SECONDS - elapsed
-            context.job_queue.run_once(
-                update_timer_callback,
-                elapsed,
-                chat_id=chat_id,
-                name=job_name,
-                data={
-                    "turn_idx": turn_idx,
-                    "round_num": round_num,
-                    "time_left": time_left,
-                    "message_id": message_id,
-                    "is_startgame": is_startgame,
-                }
-            )
-        
-        # Schedule the pin job immediately
-        context.job_queue.run_once(
-            pin_turn_job,
-            0,
-            chat_id=chat_id,
-            data={"message_id": message_id}
-        )
 
+    # Only schedule the 60s auto-drop/draw timeout job.
+    # The persistent keyboard is already edited by every player action,
+    # so the old 15s/30s/45s countdown-update jobs are not needed and
+    # were causing race conditions / duplicate messages.
     context.job_queue.run_once(
         auto_drop_callback,
         TURN_TIMEOUT_SECONDS,
@@ -99,7 +76,7 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
         data={
             "turn_idx": turn_idx,
             "round_num": round_num,
-            "player_id": player_id
+            "player_id": player_id,
         }
     )
 

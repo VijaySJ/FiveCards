@@ -4,9 +4,10 @@ keyboards.py — InlineKeyboardMarkup builders for the 5 Cards game bot.
 All functions return telegram InlineKeyboardMarkup objects ready to be
 attached to bot messages.
 
-All action buttons are shown in a single turn_keyboard() layout.
-The game engine handles phase validation and returns appropriate errors
-if a button is pressed out of sequence.
+PERSISTENT KEYBOARD:
+  persistent_game_keyboard() is sent ONCE when the game starts and is
+  EDITED (never re-sent) on every turn change.  All 5 buttons are always
+  visible; phase validation is enforced via toast alerts in callbacks.py.
 """
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -14,51 +15,57 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from app.config.settings import BOT_USERNAME
 
 
-def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
-    """Build the main turn keyboard based on the current turn phase.
+def persistent_game_keyboard() -> InlineKeyboardMarkup:
+    """Build the single persistent game keyboard shown throughout the game.
 
-    - must_discard phase: shows only the Drop button (player must drop a card)
-    - choose_action phase: shows Pick / Draw / Declare (no Drop — wrong phase)
+    This keyboard is sent ONCE at game start and the message is EDITED
+    on every turn — it is NEVER re-sent as a new message.
 
-    Args:
-        game: Game state dict. If None, falls back to choose_action layout.
+    All 5 buttons are always visible regardless of turn phase.
+    Phase guards are enforced in callbacks.py via toast alerts so
+    players get instant feedback without a new chat message.
+
+    Layout:
+        [📥 Pick Open Card]  [🎴 Draw from Pile]
+        [         🏳️ Declare         ]
+        [         ⏬ Drop the Card     ]
+        [         🃏 Card In Hand →    ]
 
     Returns:
-        InlineKeyboardMarkup with only the buttons valid for the current phase.
+        InlineKeyboardMarkup with all action buttons.
     """
-    bot_dm_link = f"https://t.me/{BOT_USERNAME}"
-
-    phase = game.get("turn_phase") if game else "choose_action"
-
-    if phase == "must_discard":
-        # Player must drop a card — only show the Drop button
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "⏬ Drop the Card",
-                    switch_inline_query_current_chat="/drop "
-                ),
-            ],
-            [
-                InlineKeyboardButton("🃏 Card In Hand →", url=bot_dm_link),
-            ],
-        ]
-        return InlineKeyboardMarkup(keyboard)
-
-    # choose_action phase — Pick / Draw / Declare only (no Drop)
-    keyboard = [
+    return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🃏 Pick Open Card", callback_data="action:pick"),
+            InlineKeyboardButton("📥 Pick Open Card", callback_data="action:pick"),
             InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
         ],
         [
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
         ],
         [
-            InlineKeyboardButton("🃏 Card In Hand →", url=bot_dm_link),
+            InlineKeyboardButton(
+                "⏬ Drop the Card",
+                switch_inline_query_current_chat="/drop "
+            ),
         ],
-    ]
-    return InlineKeyboardMarkup(keyboard)
+        [
+            InlineKeyboardButton("🃏 Card In Hand →", callback_data="action:hand"),
+        ],
+    ])
+
+
+def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
+    """Legacy keyboard used only for the initial /startgame deal message.
+
+    For all subsequent turns use persistent_game_keyboard() and edit
+    the existing message instead of sending a new one.
+
+    Returns:
+        InlineKeyboardMarkup — identical to persistent_game_keyboard().
+    """
+    # Always return the full persistent layout; callers that previously
+    # relied on phase-gating now use persistent_game_keyboard() directly.
+    return persistent_game_keyboard()
 
 
 def dm_keyboard(group_link: str) -> InlineKeyboardMarkup:

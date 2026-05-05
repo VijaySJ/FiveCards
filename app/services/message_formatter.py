@@ -7,10 +7,22 @@ No Telegram API calls — just string construction.
 
 import logging
 
-from app.core.card_utils import format_card, format_hand, hand_value, get_card_rank
+from app.core.card_utils import format_card, format_hand, hand_value, get_card_rank, get_card_suit
 from app.config.settings import DECLARATION_PENALTY
 
 logger = logging.getLogger(__name__)
+
+_SUIT_EMOJI: dict[str, str] = {'H': '♥️', 'D': '♦️', 'C': '♣️', 'S': '♠️'}
+
+
+def _fmt_open_card(card: str) -> str:
+    """Format the open (top of discard pile) card with suit emoji."""
+    if not card or card == '—':
+        return '—'
+    rank = get_card_rank(card)
+    suit = get_card_suit(card)
+    emoji = _SUIT_EMOJI.get(suit.upper(), suit)
+    return f"{rank} {emoji}"
 
 
 def fmt_game_created(admin_username: str, rounds: int, chat_title: str = "") -> str:
@@ -62,23 +74,34 @@ def fmt_game_starting(game: dict, time_left: int = 60) -> str:
 
 
 def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
-    """Format the turn announcement shown in group chat."""
+    """Format the persistent turn announcement shown in group chat.
+
+    This text is used as the body of the single persistent keyboard message
+    that is EDITED (not re-sent) on every turn change.
+    """
     active = game["players"][game["current_turn_idx"]]
     open_card = game["discard_pile"][-1] if game["discard_pile"] else "—"
+    open_display = _fmt_open_card(open_card)
     joker_rank = game["joker_rank"]
+    round_no = game["round_current"]
+    total_rounds = game["rounds_total"]
 
-    lines = [
-        "┌─────────────────────────┐",
-        f"│   ▶️  {active['username']}'s Turn (⏳ {time_left}s)",
-        "└─────────────────────────┘",
-        "",
-        f"  🃏 Open Card:  {format_card(open_card)}",
-        f"  🎭 Joker: {joker_rank}",
-        "",
-        "  👥 Player Cards:",
-        f"  {fmt_card_counts(game)}",
-    ]
-    return "\n".join(lines)
+    scores_line = " | ".join(
+        f"{p['username']}: {p['total_score']}pts"
+        for p in game["players"]
+    )
+
+    return (
+        f"🎮 Round {round_no}/{total_rounds}\n"
+        f"━" * 19 + "\n"
+        f"📤 Open Card  : {open_display}\n"
+        f"🃏 Joker Rank : {joker_rank} (= 0 pts)\n"
+        f"━" * 19 + "\n"
+        f"▶️ {active['username']}'s Turn  ⏱ {time_left}s\n"
+        f"📌 Drop a card first!\n"
+        f"━" * 19 + "\n"
+        f"📊 {scores_line}"
+    )
 
 
 def fmt_discard_prompt(username: str) -> str:
@@ -119,9 +142,10 @@ def fmt_must_discard_dm(player: dict, picked_card: str, joker_rank: str) -> str:
         "└─────────────────────────┘",
         f"  {format_hand(player['hand'], joker_rank)}",
         "",
-        "👉 Go back to group & type:",
-        "   /drop <card>  (e.g., /drop 6H)",
-        "   Multi-drop: /drop 6H 6D 6C",
+        "👉 Go back to group & drop by rank:",
+        "   /drop 9        → drop one 9 (any suit)",
+        "   /drop 9 9      → drop two 9s",
+        "   /drop K K K    → drop three Kings",
     ]
     return "\n".join(lines)
 
@@ -281,7 +305,8 @@ def fmt_help() -> str:
         "  /startgame — Start the game (admin only)",
         "  /pick — Pick the open (top discard) card",
         "  /draw — Draw from the middle pile",
-        "  /drop <cards> — Discard card(s) (e.g. /drop 6H)",
+        "  /drop [rank] [rank] — Discard by rank (suit ignored)",
+        "    e.g. /drop 9  /drop 9 9  /drop K K K",
         "  /declare — Declare (attempt to win the round)",
         "  /hand — View your hand (sent via DM)",
         "  /scores — View current scores",
@@ -289,8 +314,10 @@ def fmt_help() -> str:
         "  /help — Show this help message",
         "",
         "🔄 TURN FLOW:",
-        "  1. Pick open card OR Draw from pile OR Declare",
-        "  2. After pick/draw → drop one or more cards (same rank)",
+        "  1. Drop a card first (start of turn)",
+        "  2. Direct Drop (same rank as open card) → turn ends",
+        "  3. Normal Drop → then Pick open card OR Draw from pile",
+        "  4. OR Declare at the start of your turn",
         "",
         "🎯 SCORING:",
         "  A=1, 2-10=face value, J=11, Q=12, K=13",
@@ -312,3 +339,32 @@ def fmt_dm_warning(username: str, bot_username: str) -> str:
         f"⚠️ @{username} — please start a DM with me first! "
         f"Click @{bot_username} and press START."
     )
+
+
+def format_hand_for_display(hand: list[str], joker_rank: str = "") -> str:
+    """Format a player's hand as emoji card list for DM display.
+
+    Used by the action:hand button to show cards with suit emojis
+    and a total point value line.
+
+    Args:
+        hand:       List of card strings.
+        joker_rank: Current round's joker rank (for point calc).
+
+    Returns:
+        Multi-line string with one card per line and a total.
+    """
+    if not hand:
+        return "🫗 Your hand is empty!"
+
+    lines: list[str] = []
+    total = 0
+    for card in hand:
+        rank = get_card_rank(card)
+        suit = get_card_suit(card)
+        emoji = _SUIT_EMOJI.get(suit.upper(), suit)
+        pts = hand_value([card], joker_rank) if joker_rank else 0
+        lines.append(f"  {rank} {emoji}  → {pts} pts")
+        total += pts
+    lines.append(f"\n📊 Total: {total} pts")
+    return "\n".join(lines)

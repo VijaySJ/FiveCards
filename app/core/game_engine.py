@@ -236,51 +236,116 @@ def process_draw(game: dict, player_id: int) -> str:
     return drawn
 
 
-def process_drop(game: dict, player_id: int, cards_to_drop: list[str]) -> bool:
-    """Player discards one or more cards from their hand.
+def parse_drop_tokens(tokens: list[str]) -> list[str]:
+    """Parse drop command tokens into canonical rank strings.
+
+    Accepts rank-only tokens like ['9','9'] or ['K','K','K']
+    or old suit-suffixed tokens like ['9H','9S'] — suit is ignored.
 
     Args:
-        game: Game state dict. Mutated in place.
+        tokens: Raw string tokens from the /drop command.
+
+    Returns:
+        List of canonical rank strings e.g. ['9','9'].
+
+    Raises:
+        InvalidCardError: If a token cannot be mapped to a valid rank.
+    """
+    rank_map: dict[str, str] = {
+        '2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
+        '7': '7', '8': '8', '9': '9', '10': '10',
+        'j': 'J', 'q': 'Q', 'k': 'K', 'a': 'A',
+        'jack': 'J', 'queen': 'Q', 'king': 'K', 'ace': 'A',
+        'jk': 'JK',  # printed joker rank
+    }
+    ranks: list[str] = []
+    for token in tokens:
+        t = token.strip().lower()
+        # Strip any trailing suit character (c/h/d/s) so '9h' → '9'
+        if len(t) > 1 and t[-1] in ('c', 'h', 'd', 's') and not t.startswith('jk'):
+            t = t[:-1]
+        rank = rank_map.get(t)
+        if rank is None:
+            raise InvalidCardError(
+                f"❌ Unknown card: {token}\n"
+                f"Use rank only: /drop 9 9  or  /drop K K K"
+            )
+        ranks.append(rank)
+    return ranks
+
+
+def process_drop(game: dict, player_id: int, tokens: list[str]) -> bool:
+    """Player discards one or more cards from their hand by rank.
+
+    Accepts rank-only tokens (e.g. ['9','9']) or suit-suffixed tokens
+    (e.g. ['9H','9S']) — the suit is stripped and ignored.  All tokens
+    must resolve to the same rank.  The engine picks that many cards of
+    that rank from the player's hand automatically.
+
+    Args:
+        game:     Game state dict. Mutated in place.
         player_id: User ID of the dropping player.
-        cards_to_drop: List of card strings to discard.
+        tokens:   Raw token strings from the /drop command.
 
     Returns:
         True if the player's hand is now empty.
+
+    Raises:
+        InvalidActionError: If no tokens provided or phase is wrong.
+        InvalidCardError:   If tokens reference an invalid rank or the
+                            player doesn't have enough cards of that rank.
     """
     player = validate_active_player(game, player_id)
 
     if game["turn_phase"] != "must_discard":
         raise WrongPhaseError("must_discard", action="drop")
-    if not cards_to_drop:
+    if not tokens:
         raise InvalidActionError("❌ You must specify at least one card to drop.")
 
-    hand_copy = list(player["hand"])
-    for c in cards_to_drop:
-        card_upper = c.upper()
-        if card_upper not in hand_copy:
-            raise InvalidCardError(c)
-        hand_copy.remove(card_upper)
+    drop_ranks = parse_drop_tokens(tokens)
 
-    if len(cards_to_drop) > 1:
-        ranks = set(card_utils.get_card_rank(c.upper()) for c in cards_to_drop)
-        if len(ranks) > 1:
-            raise InvalidActionError("❌ All dropped cards must be the same rank.")
+    # All tokens must be the same rank
+    if len(set(drop_ranks)) > 1:
+        raise InvalidActionError(
+            "❌ All dropped cards must be the same rank.\n"
+            "Example: /drop 9 9  (both are rank 9)"
+        )
 
-    for c in cards_to_drop:
-        card_upper = c.upper()
-        player["hand"].remove(card_upper)
-        game["discard_pile"].append(card_upper)
+    target_rank = drop_ranks[0]
+    count_to_drop = len(drop_ranks)
 
-    logger.info("Player %s dropped %s, %d cards remaining", player["username"], cards_to_drop, len(player["hand"]))
+    # Find cards of that rank in hand (any suit)
+    matching_cards = [
+        c for c in player["hand"]
+        if card_utils.get_card_rank(c) == target_rank
+    ]
 
-    open_card_idx = len(game["discard_pile"]) - len(cards_to_drop) - 1
-    open_card = game["discard_pile"][open_card_idx] if open_card_idx >= 0 else None
-    
+    if len(matching_cards) < count_to_drop:
+        raise InvalidCardError(
+            f"❌ You only have {len(matching_cards)} card(s) of rank {target_rank}\n"
+            f"in your hand. You tried to drop {count_to_drop}."
+        )
+
+    # Drop exactly count_to_drop cards of that rank (any suit, FIFO)
+    cards_to_remove = matching_cards[:count_to_drop]
+    for card in cards_to_remove:
+        player["hand"].remove(card)
+
+    # Record the previous open card for direct-drop detection
+    prev_open_card = game["discard_pile"][-1] if game["discard_pile"] else None
+    for card in cards_to_remove:
+        game["discard_pile"].append(card)
+
+    logger.info(
+        "Player %s dropped %s (%d card(s)), %d remaining",
+        player["username"], cards_to_remove, count_to_drop, len(player["hand"]),
+    )
+
+    # Check direct drop: dropped rank matches previous open card's rank
     is_direct_drop = False
-    if open_card:
-        open_rank = card_utils.get_card_rank(open_card)
-        drop_ranks = set(card_utils.get_card_rank(c.upper()) for c in cards_to_drop)
-        if len(drop_ranks) == 1 and drop_ranks.pop() == open_rank:
+    if prev_open_card:
+        prev_rank = card_utils.get_card_rank(prev_open_card)
+        if target_rank == prev_rank:
             is_direct_drop = True
 
     game["picked_card"] = None
@@ -288,7 +353,7 @@ def process_drop(game: dict, player_id: int, cards_to_drop: list[str]) -> bool:
         advance_turn(game)
     else:
         game["turn_phase"] = "choose_action"
-        
+
     return len(player["hand"]) == 0
 
 
@@ -354,6 +419,9 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
 def process_declare(game: dict, player_id: int) -> dict[int, int]:
     """Player declares (attempts to win the round).
 
+    Declaration is only allowed at the START of a player's turn,
+    i.e. when turn_phase == "must_discard" (before picking/drawing).
+
     Args:
         game: Game state dict. Mutated in place.
         player_id: User ID of the declaring player.
@@ -363,7 +431,9 @@ def process_declare(game: dict, player_id: int) -> dict[int, int]:
     """
     validate_active_player(game, player_id)
 
-    if game["turn_phase"] != "choose_action":
+    # CHANGE #4 FIX: declare is valid at the START of a turn (must_discard),
+    # NOT after pick/draw (choose_action). The old check was inverted.
+    if game["turn_phase"] != "must_discard":
         raise WrongPhaseError("must_discard", action="declare")
 
     game["declared_by_id"] = player_id

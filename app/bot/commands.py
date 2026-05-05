@@ -110,11 +110,19 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 reply_markup=keyboards.dm_keyboard(group_link),
             )
 
-        start_msg = fmt.fmt_game_starting(game, 60)
-        msg = await update.message.reply_text(start_msg, reply_markup=keyboards.turn_keyboard(game))
-        
-        await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=True)
-        logger.info("/startgame in chat %d — %d players", chat_id, len(game["players"]))
+        # CHANGE #1: Send the ONE persistent keyboard message and store its ID
+        start_msg = fmt.fmt_turn_announcement(game, 60)
+        msg = await update.message.reply_text(
+            start_msg,
+            reply_markup=keyboards.persistent_game_keyboard()
+        )
+
+        # Store keyboard_message_id in game state so all callers can edit it
+        game["keyboard_message_id"] = msg.message_id
+        state_manager.update_game(chat_id, game)
+
+        await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
+        logger.info("/startgame in chat %d — %d players, keyboard_msg=%d", chat_id, len(game["players"]), msg.message_id)
     except GameException as e:
         await update.message.reply_text(e.message)
 
@@ -132,11 +140,9 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
-        await update.message.reply_text(
-            fmt.fmt_player_picked(username),
-        )
+        await update.message.reply_text(fmt.fmt_player_picked(username))
 
-        # Send hand via DM
+        # Send updated hand via DM
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
         group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
@@ -145,9 +151,14 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        turn_msg = fmt.fmt_turn_announcement(game, 60)
-        msg = await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
-        await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
+        # CHANGE #1: edit persistent keyboard, do NOT send a new one
+        from app.bot.callbacks import _edit_persistent_keyboard
+        await _edit_persistent_keyboard(context, chat_id, game)
+        await start_turn_timer(
+            context, chat_id, game,
+            message_id=game.get("keyboard_message_id"),
+            is_startgame=False,
+        )
         logger.info("/pick by %s in chat %d", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -169,9 +180,7 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
-        await update.message.reply_text(
-            fmt.fmt_player_drew(username),
-        )
+        await update.message.reply_text(fmt.fmt_player_drew(username))
 
         # Send hand via DM
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
@@ -181,10 +190,15 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             username=username, chat_id=chat_id,
             reply_markup=keyboards.dm_keyboard(group_link),
         )
-        
-        turn_msg = fmt.fmt_turn_announcement(game, 60)
-        msg = await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
-        await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
+
+        # CHANGE #1: edit persistent keyboard, do NOT send a new one
+        from app.bot.callbacks import _edit_persistent_keyboard
+        await _edit_persistent_keyboard(context, chat_id, game)
+        await start_turn_timer(
+            context, chat_id, game,
+            message_id=game.get("keyboard_message_id"),
+            is_startgame=False,
+        )
         logger.info("/draw by %s in chat %d", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -228,13 +242,18 @@ async def intercept_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /drop <card1> [card2] ... — Discard card(s)."""
+    """Handle /drop [rank] [rank] ... — Discard card(s) by rank.
+
+    CHANGE #3: Accepts rank-only tokens. Suit is ignored.
+    Examples: /drop 9   /drop 9 9   /drop K K K
+    """
     chat_id = update.effective_chat.id
     user = update.effective_user
 
     try:
         game = state_manager.get_game_or_raise(chat_id)
-        
+
+        # Collect tokens from context.args OR parse directly from message text
         args = context.args or []
         if not args and update.message and update.message.text:
             text = update.message.text
@@ -246,34 +265,37 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     args = after_drop.split()
 
         if not args:
-            await update.message.reply_text("❌ Usage: /drop <card> [card2] ...\nExample: /drop 6H  or  /drop 6H 6D 6C")
+            await update.message.reply_text(
+                "❌ Usage: /drop [rank] [rank] ...\n"
+                "Examples:\n"
+                "  /drop 9        → drop one 9\n"
+                "  /drop 9 9      → drop two 9s\n"
+                "  /drop K K K    → drop three Kings"
+            )
             return
 
-        try:
-            cards_to_drop = [normalize_card(c) for c in args]
-        except Exception:
-            await update.message.reply_text("⚠️ Invalid card format. Use rank+suit e.g. 2c, Kh, As")
-            return
-        
-        # Validation debug logs
-        logger.debug(f"[DROP] User {user.id} attempting to drop: {cards_to_drop}")
-        logger.debug(f"[DROP] Current phase: {game['turn_phase']}")
-        active_player = game['players'][game['current_turn_idx']]
-        logger.debug(f"[DROP] Active player ID: {active_player['user_id']}, Request user ID: {user.id}")
-        
-        hand_empty = game_engine.process_drop(game, user.id, cards_to_drop)
-        logger.debug(f"[DROP] Drop successful! Hand empty: {hand_empty}")
-        
+        # CHANGE #3: pass raw tokens; rank-only parsing is done in game_engine
+        logger.debug("[DROP] User %d attempting to drop tokens: %s", user.id, args)
+        logger.debug("[DROP] Current phase: %s", game["turn_phase"])
+        active_player = game["players"][game["current_turn_idx"]]
+        logger.debug("[DROP] Active: %s (%d), requester: %d", active_player["username"], active_player["user_id"], user.id)
+
+        hand_empty = game_engine.process_drop(game, user.id, args)
+        logger.debug("[DROP] Drop successful! Hand empty: %s", hand_empty)
+
         state_manager.update_game(chat_id, game)
 
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
-        drop_msg = fmt.fmt_player_dropped(username, cards_to_drop, len(player["hand"]))
+        # Determine what was actually dropped (last N cards added to discard pile)
+        dropped_cards = game["discard_pile"][-len(args):]
+        drop_msg = fmt.fmt_player_dropped(username, dropped_cards, len(player["hand"]))
         await update.message.reply_text(drop_msg)
         if hand_empty:
             await update.message.reply_text(fmt.fmt_player_hand_empty(username))
 
+        # DM updated hand
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
         group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
@@ -282,11 +304,15 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        turn_msg = fmt.fmt_turn_announcement(game, 60)
-        msg = await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
-        
-        await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
-        logger.info("/drop %s by %s in chat %d", cards_to_drop, username, chat_id)
+        # CHANGE #1: edit persistent keyboard, do NOT send a new one
+        from app.bot.callbacks import _edit_persistent_keyboard
+        await _edit_persistent_keyboard(context, chat_id, game)
+        await start_turn_timer(
+            context, chat_id, game,
+            message_id=game.get("keyboard_message_id"),
+            is_startgame=False,
+        )
+        logger.info("/drop %s by %s in chat %d", args, username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
 
@@ -411,17 +437,17 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/startgame — Start the game (Admin only)\n"
         "/endgame — End current game (Admin only)\n"
         "/join — Join the game lobby\n"
-        "/drop [cards] — Drop cards from your hand\n"
-        "   Example: /drop 2c Kh As\n"
-        "/declare — Declare if you have lowest points\n\n"
-        "*Card Format:*\n"
-        "Rank + Suit: 2c=2♣ 3h=3♥ Kd=K♦ As=A♠\n\n"
+        "/drop [rank] [rank] ... — Drop cards by rank\n"
+        "   /drop 9        → drop one 9 (any suit)\n"
+        "   /drop 9 9      → drop two 9s\n"
+        "   /drop K K K    → drop three Kings\n"
+        "/declare — Declare at the start of your turn\n\n"
         "*Turn Order:*\n"
-        "1️⃣ Drop a card first\n"
-        "2️⃣ If Direct Drop → turn ends immediately\n"
-        "3️⃣ If Normal Drop → Pick Open Card or Draw\n"
-        "⏱ 60 seconds per turn or auto-play triggers",
-        parse_mode='Markdown'
+        "1️⃣ Drop a card first (start of turn)\n"
+        "2️⃣ Direct Drop (same rank as open) → turn ends\n"
+        "3️⃣ Normal Drop → Pick Open Card or Draw\n"
+        "⏱ 60 seconds per action or auto-play triggers",
+        parse_mode="Markdown"
     )
 
 

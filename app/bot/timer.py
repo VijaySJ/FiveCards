@@ -143,33 +143,32 @@ async def pin_turn_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def update_timer_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Executed every 15 seconds to update the turn announcement message."""
+    """Executed every 15 seconds to update the persistent keyboard message."""
     job = context.job
     chat_id = job.chat_id
     data = job.data
-    
+
     try:
         game = state_manager.get_game_or_raise(chat_id)
-        
+
         # Verify the turn hasn't changed
         if game["round_current"] != data["round_num"] or game["current_turn_idx"] != data["turn_idx"]:
             return
-            
-        message_id = data["message_id"]
+
+        # CHANGE #1: use keyboard_message_id from game state (single persistent message)
+        message_id = game.get("keyboard_message_id") or data.get("message_id")
         time_left = data["time_left"]
-        is_startgame = data["is_startgame"]
-        
-        if is_startgame:
-            new_text = fmt.fmt_game_starting(game, time_left)
-        else:
-            new_text = fmt.fmt_turn_announcement(game, time_left)
-            
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=message_id,
-            text=new_text,
-            reply_markup=keyboards.turn_keyboard(game)
-        )
+
+        if message_id:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=fmt.fmt_turn_announcement(game, time_left),
+                    reply_markup=keyboards.persistent_game_keyboard(),
+                )
+            except Exception as e:
+                logger.debug("Timer update edit failed (ok if message unchanged): %s", e)
     except GameException:
         pass  # Game ended or deleted
     except Exception as e:
@@ -180,34 +179,40 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
     job = context.job
     chat_id = job.chat_id
     data = job.data
-    
+
     try:
         game = state_manager.get_game_or_raise(chat_id)
-        
+
         # Verify the turn hasn't changed
         if game["round_current"] != data["round_num"] or game["current_turn_idx"] != data["turn_idx"]:
             return
-            
+
         player_id = data["player_id"]
         player = state_manager.get_player(game, player_id)
         if not player:
             return
-            
+
         username = player["username"]
         drawn_card, dropped_cards, hand_empty = game_engine.process_timeout(game, player_id)
         state_manager.update_game(chat_id, game)
-        
-        # Announce to group
-        announcement = f"⏰ <b>Time's up!</b>\n{username} took too long and randomly dropped: {', '.join(dropped_cards)}"
+
+        # Announce timeout to group
+        if dropped_cards:
+            announcement = (
+                f"⏰ <b>Time's up!</b>\n"
+                f"{username} took too long and randomly dropped: {', '.join(dropped_cards)}"
+            )
+        else:
+            announcement = f"⏰ <b>Time's up!</b>\n{username} had no cards to drop!"
         await context.bot.send_message(
             chat_id=chat_id,
             text=announcement,
             parse_mode="HTML"
         )
-        
+
         if hand_empty:
             await context.bot.send_message(
-                chat_id=chat_id, 
+                chat_id=chat_id,
                 text=fmt.fmt_player_hand_empty(username)
             )
 
@@ -220,15 +225,25 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # Start next turn automatically
-        turn_msg = fmt.fmt_turn_announcement(game, 60)
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text=turn_msg,
-            reply_markup=keyboards.turn_keyboard(game)
+        # CHANGE #1: edit the persistent keyboard message, do NOT send a new one
+        keyboard_msg_id = game.get("keyboard_message_id")
+        if keyboard_msg_id:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=keyboard_msg_id,
+                    text=fmt.fmt_turn_announcement(game, 60),
+                    reply_markup=keyboards.persistent_game_keyboard(),
+                )
+            except Exception as e:
+                logger.warning("Could not edit keyboard after timeout: %s", e)
+
+        await start_turn_timer(
+            context, chat_id, game,
+            message_id=keyboard_msg_id,
+            is_startgame=False,
         )
-        await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
-            
+
     except GameException as e:
         logger.error("Error in auto_drop_callback: %s", e.message)
     except Exception as e:

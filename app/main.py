@@ -50,9 +50,15 @@ def main() -> None:
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # 1. Raw drop interceptor — MUST be first
+    # 1. Raw drop interceptor — MUST be first, but MUST NOT swallow /commands
     from app.bot.commands import intercept_drop
-    app.add_handler(MessageHandler(filters.TEXT, intercept_drop), group=0)
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            intercept_drop
+        ),
+        group=0
+    )
 
     # 2. Admin commands
     app.add_handler(CommandHandler("newgame", cmd_newgame))

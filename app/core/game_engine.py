@@ -295,13 +295,22 @@ def process_drop(game: dict, player_id: int, cards_to_drop: list[str]) -> bool:
 def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str], bool]:
     """Handle a player timing out their turn.
     
-    If they are in must_discard, auto-drop a card. If it doesn't match, auto-draw.
+    If they are in must_discard, auto-drop a card. If it doesn't match, advance
+    phase to choose_action but stop — do NOT auto-draw in the same call.
     If they are in choose_action, auto-draw.
     
     Returns:
         (drawn_card, dropped_cards, hand_empty)
     """
     player = validate_active_player(game, player_id)
+
+    # FIX #4: Guard against 0-card hand — skip to advance_turn immediately
+    if len(player["hand"]) == 0:
+        logger.warning("Timeout: Player %s has 0 cards — skipping auto-drop", player["username"])
+        game["pending_auto_declare"] = player_id
+        advance_turn(game)
+        return None, [], True
+
     drawn_card = None
     dropped_cards = []
     
@@ -325,9 +334,12 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
             advance_turn(game)
             return None, dropped_cards, not player["hand"]
         else:
+            # Phase changed to choose_action — stop here, do NOT auto-draw too
             game["turn_phase"] = "choose_action"
-            
-    if game["turn_phase"] == "choose_action":
+            game["picked_card"] = None
+            return None, dropped_cards, False  # FIX #5: return, not fall-through
+
+    elif game["turn_phase"] == "choose_action":  # FIX #5: elif NOT if
         if not game["deck"]:
             _reshuffle_discard_to_deck(game)
         drawn_card = game["deck"].pop(0)
@@ -373,6 +385,9 @@ def process_declare(game: dict, player_id: int) -> dict[int, int]:
 def advance_turn(game: dict) -> None:
     """Advance the turn to the next player (wraps around).
 
+    If the next player has 0 cards in hand, sets game["pending_auto_declare"]
+    so start_turn_timer() can immediately trigger a declare for them.
+
     Args:
         game: Game state dict. Mutated in place.
     """
@@ -382,6 +397,12 @@ def advance_turn(game: dict) -> None:
     game["picked_card"] = None
     next_player = game["players"][game["current_turn_idx"]]
     logger.info("Turn advanced to %s (%d)", next_player["username"], next_player["user_id"])
+
+    # FIX #7: Auto-declare if next player already has 0 cards
+    if len(next_player["hand"]) == 0:
+        game["pending_auto_declare"] = next_player["user_id"]
+        logger.info("Player %s has 0 cards — flagging pending_auto_declare", next_player["username"])
+
 
 
 def get_active_player(game: dict) -> dict:

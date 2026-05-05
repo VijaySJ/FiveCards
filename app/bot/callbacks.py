@@ -64,17 +64,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_player_picked(username),
-                reply_markup=keyboards.turn_keyboard(game),
             )
 
-            # Send hand via DM with navigation
-            discard_msg = fmt.fmt_must_discard_dm(player, picked_card, game["joker_rank"])
-            group_link = await get_group_link(context.bot, chat_id)
+            # FIX #3: Confirm turn end to the player via DM (not a discard prompt)
             await send_dm(
-                context.bot, user.id, discard_msg,
+                context.bot, user.id,
+                "✅ Your turn is complete. Wait for your next turn.",
                 username=username, chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(group_link),
             )
+
+            # FIX #2: Announce next player's turn and start their timer
+            announcement = fmt.fmt_turn_announcement(game, 60)
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=announcement,
+                reply_markup=keyboards.turn_keyboard(game),
+            )
+            await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
 
         elif data == "action:draw":
             game = state_manager.get_game_or_raise(chat_id)
@@ -91,17 +97,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_player_drew(username),
-                reply_markup=keyboards.turn_keyboard(game),
             )
 
-            # Send hand via DM with navigation
-            discard_msg = fmt.fmt_must_discard_dm(player, drawn_card, game["joker_rank"])
-            group_link = await get_group_link(context.bot, chat_id)
+            # FIX #3: Confirm turn end to the player via DM (not a discard prompt)
             await send_dm(
-                context.bot, user.id, discard_msg,
+                context.bot, user.id,
+                "✅ Your turn is complete. Wait for your next turn.",
                 username=username, chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(group_link),
             )
+
+            # FIX #2: Announce next player's turn and start their timer
+            announcement = fmt.fmt_turn_announcement(game, 60)
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=announcement,
+                reply_markup=keyboards.turn_keyboard(game),
+            )
+            await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
 
         elif data == "action:declare":
             game = state_manager.get_game_or_raise(chat_id)
@@ -161,7 +173,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 reply_markup=keyboards.turn_keyboard(game),
             )
             
-            start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=True)
+            await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=True)
 
         elif data == "finish_game":
             game = state_manager.get_game_or_raise(chat_id)

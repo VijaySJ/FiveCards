@@ -15,26 +15,37 @@ from app.config.settings import BOT_USERNAME
 
 
 def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
-    """Build the main turn keyboard with all action buttons.
+    """Build the main turn keyboard based on the current turn phase.
 
-    If game is in 'must_discard' phase, only the Drop button is shown.
+    - must_discard phase: shows only the Drop button (player must drop a card)
+    - choose_action phase: shows Pick / Draw / Declare (no Drop — wrong phase)
+
+    Args:
+        game: Game state dict. If None, falls back to choose_action layout.
 
     Returns:
-        InlineKeyboardMarkup with relevant turn action buttons.
+        InlineKeyboardMarkup with only the buttons valid for the current phase.
     """
     bot_dm_link = f"https://t.me/{BOT_USERNAME}"
-    
-    if game and game.get("turn_phase") == "must_discard":
+
+    phase = game.get("turn_phase") if game else "choose_action"
+
+    if phase == "must_discard":
+        # Player must drop a card — only show the Drop button
         keyboard = [
             [
-                InlineKeyboardButton("⏬ Drop the Card", switch_inline_query_current_chat="/drop "),
+                InlineKeyboardButton(
+                    "⏬ Drop the Card",
+                    switch_inline_query_current_chat="/drop "
+                ),
             ],
             [
                 InlineKeyboardButton("🃏 Card In Hand →", url=bot_dm_link),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
 
+    # choose_action phase — Pick / Draw / Declare only (no Drop)
     keyboard = [
         [
             InlineKeyboardButton("🃏 Pick Open Card", callback_data="action:pick"),
@@ -42,7 +53,6 @@ def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
-            InlineKeyboardButton("⏬ Drop the Card", switch_inline_query_current_chat="/drop "),
         ],
         [
             InlineKeyboardButton("🃏 Card In Hand →", url=bot_dm_link),

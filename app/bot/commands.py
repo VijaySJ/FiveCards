@@ -32,6 +32,10 @@ async def cmd_newgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     chat_id = update.effective_chat.id
     user = update.effective_user
 
+    if not await is_group_admin(context.bot, chat_id, user.id):
+        await update.message.reply_text("🚫 Only group admins can start a new game.")
+        return
+
     if state_manager.game_exists(chat_id):
         existing = state_manager.get_game(chat_id)
         if existing and existing["status"] != "ended":
@@ -83,8 +87,8 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         game = state_manager.get_game_or_raise(chat_id)
 
         is_admin = await is_group_admin(context.bot, chat_id, user.id)
-        if game["admin_id"] != user.id and not is_admin:
-            await update.message.reply_text("🔒 Only the game creator or group admins can start the game.")
+        if not is_admin:
+            await update.message.reply_text("🚫 Only group admins can start the game.")
             return
         if game["status"] != "waiting":
             await update.message.reply_text("❌ Game has already started!")
@@ -130,18 +134,20 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         await update.message.reply_text(
             fmt.fmt_player_picked(username),
-            reply_markup=keyboards.turn_keyboard(game),
         )
 
-        # Send hand via DM with navigation
-        discard_msg = fmt.fmt_must_discard_dm(player, picked_card, game["joker_rank"])
+        # Send hand via DM
+        hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
         group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
-            context.bot, user.id, discard_msg,
+            context.bot, user.id, hand_msg,
             username=username, chat_id=chat_id,
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
+        turn_msg = fmt.fmt_turn_announcement(game, 60)
+        msg = await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
+        start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
         logger.info("/pick by %s in chat %d", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -165,34 +171,60 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         await update.message.reply_text(
             fmt.fmt_player_drew(username),
-            reply_markup=keyboards.turn_keyboard(game),
         )
 
-        # Send hand via DM with navigation
-        discard_msg = fmt.fmt_must_discard_dm(player, drawn_card, game["joker_rank"])
+        # Send hand via DM
+        hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
         group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
-            context.bot, user.id, discard_msg,
+            context.bot, user.id, hand_msg,
             username=username, chat_id=chat_id,
             reply_markup=keyboards.dm_keyboard(group_link),
         )
+        
+        turn_msg = fmt.fmt_turn_announcement(game, 60)
+        msg = await update.message.reply_text(turn_msg, reply_markup=keyboards.turn_keyboard(game))
+        start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
         logger.info("/draw by %s in chat %d", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
 
 
-async def intercept_mention_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+def normalize_card(token: str) -> str:
+    """Convert shorthand card string like '2c' into actual card format '2C'."""
+    token = token.strip().lower()
+    rank_map = {
+        '2':'2','3':'3','4':'4','5':'5','6':'6',
+        '7':'7','8':'8','9':'9','10':'10',
+        'j':'J','q':'Q','k':'K','a':'A'
+    }
+    suit_map = {
+        'c':'C','s':'S','h':'H','d':'D'
+    }
+    if not token:
+        return token
+    if token.startswith('jk'):
+        return token.upper()
+    if len(token) < 2:
+        return token.upper()
+        
+    rank = token[:-1]
+    suit = token[-1]
+    norm_rank = rank_map.get(rank, rank.upper())
+    norm_suit = suit_map.get(suit, suit.upper())
+    return f"{norm_rank}{norm_suit}"
+
+
+async def intercept_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Robustly catch /drop commands inside normal text messages (like bot mentions)."""
     if not update.effective_message or not update.effective_message.text:
         return
     text = update.effective_message.text.lower()
     
-    # If it starts with /drop, CommandHandler handles it in group 0
-    if text.startswith("/drop"):
+    if "/drop" not in text:
         return
         
-    if "/drop" in text:
-        await cmd_drop(update, context)
+    await cmd_drop(update, context)
 
 
 async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -217,7 +249,11 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text("❌ Usage: /drop <card> [card2] ...\nExample: /drop 6H  or  /drop 6H 6D 6C")
             return
 
-        cards_to_drop = [c.upper() for c in args]
+        try:
+            cards_to_drop = [normalize_card(c) for c in args]
+        except Exception:
+            await update.message.reply_text("⚠️ Invalid card format. Use rank+suit e.g. 2c, Kh, As")
+            return
         
         # Validation debug logs
         logger.debug(f"[DROP] User {user.id} attempting to drop: {cards_to_drop}")
@@ -353,8 +389,8 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         game = state_manager.get_game_or_raise(chat_id)
         is_admin = await is_group_admin(context.bot, chat_id, user.id)
-        if game["admin_id"] != user.id and not is_admin:
-            await update.message.reply_text("🔒 Only the game creator or group admins can end the game.")
+        if not is_admin:
+            await update.message.reply_text("🚫 Only group admins can end the game.")
             return
 
         leaderboard = game_engine.end_game(game)
@@ -368,7 +404,25 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help — Show command list and rules summary."""
-    await update.message.reply_text(fmt.fmt_help())
+    await update.message.reply_text(
+        "🃏 *Five Cards — Help*\n\n"
+        "*Commands:*\n"
+        "/newgame — Create a new game lobby (Admin only)\n"
+        "/startgame — Start the game (Admin only)\n"
+        "/endgame — End current game (Admin only)\n"
+        "/join — Join the game lobby\n"
+        "/drop [cards] — Drop cards from your hand\n"
+        "   Example: /drop 2c Kh As\n"
+        "/declare — Declare if you have lowest points\n\n"
+        "*Card Format:*\n"
+        "Rank + Suit: 2c=2♣ 3h=3♥ Kd=K♦ As=A♠\n\n"
+        "*Turn Order:*\n"
+        "1️⃣ Drop a card first\n"
+        "2️⃣ If Direct Drop → turn ends immediately\n"
+        "3️⃣ If Normal Drop → Pick Open Card or Draw\n"
+        "⏱ 60 seconds per turn or auto-play triggers",
+        parse_mode='Markdown'
+    )
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

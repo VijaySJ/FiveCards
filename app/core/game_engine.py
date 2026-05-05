@@ -136,7 +136,7 @@ def deal_initial_cards(game: dict) -> dict[int, list[str]]:
     game["status"] = "running"
     game["round_current"] = game.get("round_current", 0) + 1
     game["current_turn_idx"] = 0
-    game["turn_phase"] = "choose_action"
+    game["turn_phase"] = "must_discard"
     game["picked_card"] = None
     game["declared_by_id"] = None
 
@@ -205,7 +205,7 @@ def process_pick(game: dict, player_id: int) -> str:
 
     logger.info("Player %s picked %s from discard pile", player["username"], picked)
 
-    game["turn_phase"] = "must_discard"
+    advance_turn(game)
     return picked
 
 
@@ -230,9 +230,9 @@ def process_draw(game: dict, player_id: int) -> str:
     drawn = game["deck"].pop(0)
     player["hand"].append(drawn)
     game["picked_card"] = drawn
-    game["turn_phase"] = "must_discard"
 
     logger.info("Player %s drew %s from deck", player["username"], drawn)
+    advance_turn(game)
     return drawn
 
 
@@ -273,7 +273,8 @@ def process_drop(game: dict, player_id: int, cards_to_drop: list[str]) -> bool:
 
     logger.info("Player %s dropped %s, %d cards remaining", player["username"], cards_to_drop, len(player["hand"]))
 
-    open_card = game["discard_pile"][-2] if len(game["discard_pile"]) > 1 else None
+    open_card_idx = len(game["discard_pile"]) - len(cards_to_drop) - 1
+    open_card = game["discard_pile"][open_card_idx] if open_card_idx >= 0 else None
     
     is_direct_drop = False
     if open_card:
@@ -377,7 +378,7 @@ def advance_turn(game: dict) -> None:
     """
     num_players = len(game["players"])
     game["current_turn_idx"] = (game["current_turn_idx"] + 1) % num_players
-    game["turn_phase"] = "choose_action"
+    game["turn_phase"] = "must_discard"
     game["picked_card"] = None
     next_player = game["players"][game["current_turn_idx"]]
     logger.info("Turn advanced to %s (%d)", next_player["username"], next_player["user_id"])

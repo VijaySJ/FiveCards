@@ -50,23 +50,26 @@ def main() -> None:
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # ── Command handlers ──────────────────────────────────────────
-    app.add_handler(CommandHandler("start", cmd_start))
+    # 1. Raw drop interceptor — MUST be first
+    from app.bot.commands import intercept_drop
+    app.add_handler(MessageHandler(filters.TEXT, intercept_drop), group=0)
+
+    # 2. Admin commands
     app.add_handler(CommandHandler("newgame", cmd_newgame))
-    app.add_handler(CommandHandler("join", cmd_join))
     app.add_handler(CommandHandler("startgame", cmd_startgame))
+    app.add_handler(CommandHandler("endgame", cmd_endgame))
+
+    # 3. Player commands
+    app.add_handler(CommandHandler("join", cmd_join))
+    app.add_handler(CommandHandler("declare", cmd_declare))
+    app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("pick", cmd_pick))
     app.add_handler(CommandHandler("draw", cmd_draw))
     app.add_handler(CommandHandler("drop", cmd_drop))
-    # Support for ALL drop commands, including inline query auto-typing mentions
-    from app.bot.commands import intercept_mention_drop
-    app.add_handler(MessageHandler(filters.TEXT, intercept_mention_drop), group=1)
-    app.add_handler(CommandHandler("declare", cmd_declare))
     app.add_handler(CommandHandler("hand", cmd_hand))
     app.add_handler(CommandHandler("scores", cmd_scores))
     app.add_handler(CommandHandler("debugstate", cmd_debugstate))
-    app.add_handler(CommandHandler("endgame", cmd_endgame))
-    app.add_handler(CommandHandler("help", cmd_help))
 
     # ── Callback query handler ────────────────────────────────────
     app.add_handler(CallbackQueryHandler(handle_callback))

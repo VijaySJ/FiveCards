@@ -87,7 +87,7 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     total_rounds = game["rounds_total"]
 
     player_lines = "\n".join(
-        f"  👤 {p['username']:<12} {'🎴' * min(len(p['hand']), 5)}{'…' if len(p['hand']) > 5 else ''}  ({len(p['hand'])}🃏 · {int(p['total_score'])}pts)"
+        f"  👤 {p['username']:<12} {'🎴' * min(len(p['hand']), 5)}{'…' if len(p['hand']) > 5 else ''}  ({len(p['hand'])}🃏)"
         for p in game["players"]
     )
 

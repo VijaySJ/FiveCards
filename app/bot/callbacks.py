@@ -190,42 +190,119 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             # ── action:hand (CHANGE #5) ───────────────────────────────────────
             elif data == "action:hand":
+                import asyncio
+                from app.core.card_utils import get_card_rank, get_card_suit, hand_value
                 player = state_manager.get_player(game, user.id)
+                
                 if not player:
                     await query.answer("❌ You are not in this game.", show_alert=True)
                     return
 
                 hand = player["hand"]
                 if not hand:
-                    await query.answer("🫗 Your hand is empty!", show_alert=True)
+                    await query.answer(
+                        "🃏 Your hand is empty!", 
+                        show_alert=True
+                    )
                     return
-
-                hand_text = fmt.format_hand_for_display(hand, game["joker_rank"])
-
-                # Build deep link back to the persistent keyboard message
-                raw_chat_id = str(chat_id).replace("-100", "")
-                keyboard_msg_id = game.get("keyboard_message_id", "")
-                deep_link = (
-                    f"https://t.me/c/{raw_chat_id}/{keyboard_msg_id}"
-                    if keyboard_msg_id else None
+                
+                # ── Format the hand display ──
+                suit_emoji = {
+                    'H':'♥️', 'D':'♦️', 
+                    'C':'♣️', 'S':'♠️',
+                    'JK':'🃏'
+                }
+                hand_lines = []
+                for card in hand:
+                    rank = get_card_rank(card)
+                    suit = get_card_suit(card)
+                    emoji = suit_emoji.get(suit.upper(), '🂠')
+                    hand_lines.append(f"  {rank} {emoji}")
+                
+                hand_text = "\n".join(hand_lines)
+                points = int(hand_value(hand, game["joker_rank"]))
+                
+                # ── Build deep link BACK to the group keyboard message ──
+                # For supergroups, chat_id starts with -100
+                # Strip the -100 prefix to get the pure channel ID
+                raw_id = str(chat_id)
+                if raw_id.startswith("-100"):
+                    channel_id = raw_id[4:]   # remove "-100"
+                else:
+                    channel_id = raw_id.lstrip("-")
+                
+                keyboard_msg_id = game["keyboard_message_id"]
+                
+                # This t.me/c/ link jumps directly to a specific 
+                # message in a private group
+                back_link = f"https://t.me/c/{channel_id}/{keyboard_msg_id}"
+                
+                back_keyboard = InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton(
+                            "▶️ Back to Game",
+                            url=back_link
+                        )
+                    ]
+                ])
+                
+                # ── Send DM to player ──
+                try:
+                    dm_msg = await context.bot.send_message(
+                        chat_id=user.id,
+                        text=(
+                            f"🃏 *Your Hand*\n"
+                            f"━━━━━━━━━━━━━━\n"
+                            f"{hand_text}\n"
+                            f"━━━━━━━━━━━━━━\n"
+                            f"📊 Total: *{points} pts*\n\n"
+                            f"_Tap below to return to the game_"
+                        ),
+                        parse_mode="Markdown",
+                        reply_markup=back_keyboard
+                    )
+                except Exception:
+                    # Bot not started in DM — tell user to start the bot
+                    await query.answer(
+                        "❌ Please start the bot in DM first: "
+                        "open @fivecardsbot and tap Start",
+                        show_alert=True
+                    )
+                    return
+                
+                bot_username = context.bot.username
+                dm_link = f"https://t.me/{bot_username}?start=hand"
+                
+                await query.answer(
+                    "📬 Cards sent to your DM!", 
+                    show_alert=False
                 )
-
-                back_button = (
-                    [[InlineKeyboardButton("▶️ Back to Game", url=deep_link)]]
-                    if deep_link else []
-                )
-
-                await context.bot.send_message(
-                    chat_id=user.id,
+                
+                # Send a temporary auto-delete message in group 
+                # with a direct link to the DM for this player only
+                notice = await context.bot.send_message(
+                    chat_id=chat_id,
                     text=(
-                        f"🃏 *Your Cards:*\n\n"
-                        f"{hand_text}\n\n"
-                        f"_Tap below to return to the game_"
+                        f"📬 [{player['username']}](tg://user?id={user.id}), "
+                        f"your cards are in your DM!"
                     ),
                     parse_mode="Markdown",
-                    reply_markup=InlineKeyboardMarkup(back_button) if back_button else None,
+                    reply_to_message_id=game["keyboard_message_id"]
                 )
-                await query.answer("📬 Cards sent to your DM!", show_alert=False)
+                
+                # Auto-delete the notice after 8 seconds 
+                # so it doesn't clutter the group
+                async def delete_notice():
+                    await asyncio.sleep(8)
+                    try:
+                        await context.bot.delete_message(
+                            chat_id=chat_id,
+                            message_id=notice.message_id
+                        )
+                    except Exception:
+                        pass
+                
+                asyncio.create_task(delete_notice())
 
         # ── Legacy view_hand ──────────────────────────────────────────────────
         elif data == "view_hand":

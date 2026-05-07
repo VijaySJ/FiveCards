@@ -280,13 +280,48 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         active_player = game["players"][game["current_turn_idx"]]
         logger.debug("[DROP] Active: %s (%d), requester: %d", active_player["username"], active_player["user_id"], user.id)
 
-        hand_empty = game_engine.process_drop(game, user.id, args)
+        result = game_engine.process_drop(game, user.id, args)
+        hand_empty = result["hand_empty"]
         logger.debug("[DROP] Drop successful! Hand empty: %s", hand_empty)
 
         state_manager.update_game(chat_id, game)
 
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
+
+        from app.core import card_utils
+        if result["is_direct_drop"]:
+            dropped_str = ", ".join(card_utils.format_card(c) for c in result["dropped"])
+            
+            # Announce direct drop in group
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=(
+                    f"🎯 Direct Drop! {username} dropped {dropped_str} "
+                    f"— matches open card!\n"
+                    f"✅ Skips picking a card. "
+                    f"{result['remaining']} card(s) remaining."
+                )
+            )
+            
+            # Cancel current player timer BEFORE advancing
+            await cancel_turn_timer(context, chat_id)
+            
+            # Advance to next player
+            game_engine.advance_turn(game)   # sync call — do NOT await
+            state_manager.update_game(chat_id, game)
+            
+            # Get the NEW current player after rotation
+            new_player = game["players"][game["current_turn_idx"]]
+            
+            # EDIT the persistent keyboard message with new turn
+            from app.bot.callbacks import _edit_persistent_keyboard
+            await _edit_persistent_keyboard(context, chat_id, game)
+            
+            # Start 60s timer for NEW player
+            await start_turn_timer(context, chat_id, game, message_id=game.get("keyboard_message_id"), is_startgame=False)
+            logger.info("/drop %s by %s in chat %d (DIRECT DROP)", args, username, chat_id)
+            return
 
         # Determine what was actually dropped (last N cards added to discard pile)
         dropped_cards = game["discard_pile"][-len(args):]

@@ -274,7 +274,7 @@ def parse_drop_tokens(tokens: list[str]) -> list[str]:
     return ranks
 
 
-def process_drop(game: dict, player_id: int, tokens: list[str]) -> bool:
+def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
     """Player discards one or more cards from their hand by rank.
 
     Accepts rank-only tokens (e.g. ['9','9']) or suit-suffixed tokens
@@ -288,7 +288,7 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> bool:
         tokens:   Raw token strings from the /drop command.
 
     Returns:
-        True if the player's hand is now empty.
+        A dict containing 'is_direct_drop', 'hand_empty', 'dropped', and 'remaining'.
 
     Raises:
         InvalidActionError: If no tokens provided or phase is wrong.
@@ -349,12 +349,18 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> bool:
             is_direct_drop = True
 
     game["picked_card"] = None
-    if is_direct_drop or not player["hand"]:
-        advance_turn(game)
-    else:
-        game["turn_phase"] = "choose_action"
+    if not is_direct_drop:
+        if not player["hand"]:
+            advance_turn(game)
+        else:
+            game["turn_phase"] = "choose_action"
 
-    return len(player["hand"]) == 0
+    return {
+        "is_direct_drop": is_direct_drop,
+        "hand_empty": len(player["hand"]) == 0,
+        "dropped": cards_to_remove,
+        "remaining": len(player["hand"])
+    }
 
 
 def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str], bool]:

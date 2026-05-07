@@ -101,9 +101,9 @@ def apply_round_scores(game: dict, round_scores: dict[int, int]) -> None:
     """
     for player in game["players"]:
         uid = player["user_id"]
-        pts = round_scores.get(uid, 0)
+        pts = int(round_scores.get(uid, 0))
         player["round_scores"].append(pts)
-        player["total_score"] += pts
+        player["total_score"] = int(player.get("total_score", 0) + pts)
     logger.info(
         "Applied round %d scores. Totals: %s",
         game["round_current"],
@@ -139,11 +139,11 @@ def build_leaderboard(game: dict) -> str:
         else:
             badge = f"#{idx + 1}"
 
-        round_details = " + ".join(str(s) for s in player["round_scores"])
+        round_details = " + ".join(str(int(s)) for s in player["round_scores"])
         if not round_details:
             round_details = "—"
 
-        lines.append(f"{badge}  {player['username']}:  {player['total_score']} pts")
+        lines.append(f"{badge}  {player['username']}:  {int(player['total_score'])} pts")
         lines.append(f"     Rounds: {round_details}")
         lines.append("")
 
@@ -174,8 +174,8 @@ def build_round_summary(
 
     for player in sorted_players:
         uid = player["user_id"]
-        pts = round_scores.get(uid, 0)
-        total = player["total_score"]
+        pts = int(round_scores.get(uid, 0))
+        total = int(player["total_score"])
         indicator = ""
         if pts == DECLARATION_PENALTY:
             indicator = " ⚠️ PENALTY"

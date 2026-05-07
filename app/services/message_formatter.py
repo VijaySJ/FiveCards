@@ -87,7 +87,7 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     total_rounds = game["rounds_total"]
 
     player_lines = "\n".join(
-        f"  👤 {p['username']:<12} {'🎴' * min(len(p['hand']), 5)}{'…' if len(p['hand']) > 5 else ''}  ({len(p['hand'])}🃏 · {p['total_score']}pts)"
+        f"  👤 {p['username']:<12} {'🎴' * min(len(p['hand']), 5)}{'…' if len(p['hand']) > 5 else ''}  ({len(p['hand'])}🃏 · {int(p['total_score'])}pts)"
         for p in game["players"]
     )
 
@@ -240,8 +240,8 @@ def fmt_round_result(game: dict, round_scores: dict[int, int], declarer_username
 
     for player in sorted_players:
         uid = player["user_id"]
-        pts = round_scores.get(uid, 0)
-        total = player["total_score"]
+        pts = int(round_scores.get(uid, 0))
+        total = int(player["total_score"])
         indicator = ""
         if pts == DECLARATION_PENALTY:
             indicator = " ⚠️ PENALTY"
@@ -279,11 +279,11 @@ def fmt_scores(game: dict) -> str:
     ]
     sorted_players = sorted(game["players"], key=lambda p: p["total_score"])
     for player in sorted_players:
-        round_details = " + ".join(str(s) for s in player["round_scores"])
+        round_details = " + ".join(str(int(s)) for s in player["round_scores"])
         if not round_details:
             round_details = "—"
         lines.append(
-            f"  {player['username']}: {player['total_score']} pts"
+            f"  {player['username']}: {int(player['total_score'])} pts"
             f"  ({round_details})"
         )
     lines.append("─────────────────────────")
@@ -366,8 +366,8 @@ def format_hand_for_display(hand: list[str], joker_rank: str = "") -> str:
         rank = get_card_rank(card)
         suit = get_card_suit(card)
         emoji = _SUIT_EMOJI.get(suit.upper(), suit)
-        pts = hand_value([card], joker_rank) if joker_rank else 0
+        pts = int(hand_value([card], joker_rank)) if joker_rank else 0
         lines.append(f"  {rank} {emoji}  → {pts} pts")
         total += pts
-    lines.append(f"\n📊 Total: {total} pts")
+    lines.append(f"\n📊 Total: {int(total)} pts")
     return "\n".join(lines)

@@ -140,7 +140,7 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
-        await update.message.reply_text(fmt.fmt_player_picked(username))
+
 
         # Send updated hand via DM
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
@@ -180,7 +180,7 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
-        await update.message.reply_text(fmt.fmt_player_drew(username))
+
 
         # Send hand via DM
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
@@ -235,10 +235,12 @@ async def intercept_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     text = update.effective_message.text.lower()
     
-    if "/drop" not in text:
-        return
-        
-    await cmd_drop(update, context)
+    # Matches both "/drop" and "@bot /drop"
+    if "/drop" in text or "drop" in text:
+        # Extra guard: only trigger if it looks like a drop command token follows
+        tokens = text.split()
+        if any(t in ("/drop", "drop") for t in tokens):
+            await cmd_drop(update, context)
 
 
 async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -258,9 +260,10 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not args and update.message and update.message.text:
             text = update.message.text
             lower_text = text.lower()
-            if "/drop" in lower_text:
-                drop_idx = lower_text.index("/drop")
-                after_drop = text[drop_idx + len("/drop"):].strip()
+            if "/drop" in lower_text or "drop" in lower_text:
+                keyword = "/drop" if "/drop" in lower_text else "drop"
+                drop_idx = lower_text.index(keyword)
+                after_drop = text[drop_idx + len(keyword):].strip()
                 if after_drop:
                     args = after_drop.split()
 
@@ -315,7 +318,7 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             new_player = game["players"][game["current_turn_idx"]]
             
             # CHANGE #1: send a NEW turn message for individual turn logs
-            from app.bot.callbacks import send_new_turn_message
+            from app.bot.helpers import send_new_turn_message
             await send_new_turn_message(context, chat_id, game)
             
             # Start 60s timer for NEW player
@@ -324,11 +327,7 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
         # Determine what was actually dropped (last N cards added to discard pile)
-        dropped_cards = game["discard_pile"][-len(args):]
-        drop_msg = fmt.fmt_player_dropped(username, dropped_cards, len(player["hand"]))
-        await update.message.reply_text(drop_msg)
-        if hand_empty:
-            await update.message.reply_text(fmt.fmt_player_hand_empty(username))
+
 
         # DM updated hand
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
@@ -340,7 +339,7 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         # CHANGE #1: send a NEW turn message for individual turn logs
-        from app.bot.callbacks import send_new_turn_message
+        from app.bot.helpers import send_new_turn_message
         await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(
             context, chat_id, game,

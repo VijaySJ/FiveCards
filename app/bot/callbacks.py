@@ -22,34 +22,14 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin, get_group_link
+from app.bot.helpers import send_dm, is_group_admin, get_group_link, send_new_turn_message
 from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.core.exceptions import GameException
 
 logger = logging.getLogger(__name__)
 
 
-async def send_new_turn_message(
-    context,
-    chat_id: int,
-    game: dict,
-    time_left: int = 60,
-) -> None:
-    """Send a NEW turn announcement message instead of editing the old one.
-    
-    This fulfills the user request for 'individual messages' per turn.
-    """
-    try:
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text=fmt.fmt_turn_announcement(game, time_left),
-            reply_markup=keyboards.persistent_game_keyboard(),
-        )
-        # Update state with the new message ID so timers can still edit THIS message
-        game["keyboard_message_id"] = msg.message_id
-        state_manager.update_game(chat_id, game)
-    except Exception as e:
-        logger.warning("Could not send new turn message: %s", e)
+
 
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -108,10 +88,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 player = state_manager.get_player(game, user.id)
                 username = player["username"] if player else "Unknown"
 
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=fmt.fmt_player_picked(username),
-                )
+
 
                 # Confirm turn end via DM
                 await send_dm(
@@ -141,10 +118,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 player = state_manager.get_player(game, user.id)
                 username = player["username"] if player else "Unknown"
 
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=fmt.fmt_player_drew(username),
-                )
+
 
                 # Confirm via DM
                 await send_dm(
@@ -161,6 +135,30 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     message_id=game.get("keyboard_message_id"),
                     is_startgame=False,
                 )
+
+            # ── action:hand ───────────────────────────────────────────────────
+            elif data == "action:hand":
+                player = state_manager.get_player(game, user.id)
+                if not player:
+                    await query.answer("❌ You are not in this game.", show_alert=True)
+                    return
+                
+                # Send the hand to DM
+                hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
+                group_link = await get_group_link(context.bot, chat_id)
+                success = await send_dm(
+                    context.bot, user.id, hand_msg,
+                    username=player["username"], chat_id=chat_id,
+                    reply_markup=keyboards.dm_keyboard(group_link),
+                )
+                
+                if success:
+                    # Redirect to bot DM without sending /start
+                    bot_username = (await context.bot.get_me()).username
+                    await query.answer(url=f"https://t.me/{bot_username}")
+                else:
+                    await query.answer("❌ Please start the bot in DM first!", show_alert=True)
+                return
 
             # ── action:declare (CHANGE #4) ────────────────────────────────────
             elif data == "action:declare":

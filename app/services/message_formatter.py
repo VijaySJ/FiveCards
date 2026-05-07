@@ -91,6 +91,17 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         for p in game["players"]
     )
 
+    last_action = game.get("last_action", "Game started!")
+    
+    # Phase-specific instructions
+    phase = game.get("turn_phase", "must_discard")
+    if phase == "must_discard":
+        instruction = "👉 Drop card(s) from your hand!"
+    elif phase == "choose_action":
+        instruction = "👉 Take a Card from Deck or Pick Open Card!"
+    else:
+        instruction = ""
+
     return (
         f"╔════════════════════════╗\n"
         f"║  🎮  5 CARDS  —  Round {round_no}/{total_rounds}  ║\n"
@@ -98,9 +109,11 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         f"\n"
         f"📤  Open Card  ›  {open_display}\n"
         f"🃏  Joker Rank ›  {joker_rank}  (= 0 pts)\n"
+        f"📝  Status     ›  {last_action}\n"
         f"\n"
         f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
         f"▶️  {active['username']}'s Turn   ⏱ {time_left}s\n"
+        f"   {instruction}\n"
         f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
         f"\n"
         f"👥 Players & Scores:\n{player_lines}"

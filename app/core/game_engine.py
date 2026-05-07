@@ -201,10 +201,9 @@ def process_pick(game: dict, player_id: int) -> str:
 
     picked = game["discard_pile"].pop()
     player["hand"].append(picked)
+    game["last_action"] = f"👤 {player['username']} picked the open card"
     game["picked_card"] = picked
-
     logger.info("Player %s picked %s from discard pile", player["username"], picked)
-
     advance_turn(game)
     return picked
 
@@ -229,8 +228,8 @@ def process_draw(game: dict, player_id: int) -> str:
 
     drawn = game["deck"].pop(0)
     player["hand"].append(drawn)
+    game["last_action"] = f"👤 {player['username']} drew from the pile"
     game["picked_card"] = drawn
-
     logger.info("Player %s drew %s from deck", player["username"], drawn)
     advance_turn(game)
     return drawn
@@ -350,10 +349,13 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
 
     game["picked_card"] = None
     if not is_direct_drop:
+        game["last_action"] = f"👤 {player['username']} dropped {len(cards_to_remove)} card(s)"
         if not player["hand"]:
             advance_turn(game)
         else:
             game["turn_phase"] = "choose_action"
+    else:
+        game["last_action"] = f"🎯 {player['username']} made a DIRECT DROP!"
 
     return {
         "is_direct_drop": is_direct_drop,
@@ -402,10 +404,12 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
                 is_direct_drop = True
                 
         if is_direct_drop or not player["hand"]:
+            game["last_action"] = f"⏰ {player['username']} timed out (Turn Ended)"
             advance_turn(game)
             return None, dropped_cards, not player["hand"]
         else:
             # Phase changed to choose_action — stop here, do NOT auto-draw too
+            game["last_action"] = f"⏰ {player['username']} timed out (Waiting to Draw)"
             game["turn_phase"] = "choose_action"
             game["picked_card"] = None
             return None, dropped_cards, False  # FIX #5: return, not fall-through

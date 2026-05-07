@@ -103,3 +103,28 @@ async def get_group_link(bot: Bot, chat_id: int) -> str:
         clean_id = clean_id[1:]
     return f"https://t.me/c/{clean_id}/1"
 
+async def send_new_turn_message(
+    context,
+    chat_id: int,
+    game: dict,
+    time_left: int = 60,
+) -> None:
+    """Send a NEW turn announcement message instead of editing the old one.
+    
+    This fulfills the user request for 'individual messages' per turn.
+    """
+    from app.services import state_manager
+    from app.services import message_formatter as fmt
+    from app.bot import keyboards
+    
+    try:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=fmt.fmt_turn_announcement(game, time_left),
+            reply_markup=keyboards.persistent_game_keyboard(),
+        )
+        # Update state with the new message ID so timers can still edit THIS message
+        game["keyboard_message_id"] = msg.message_id
+        state_manager.update_game(chat_id, game)
+    except Exception as e:
+        logger.warning("Could not send new turn message: %s", e)

@@ -98,13 +98,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     username=username, chat_id=chat_id,
                 )
 
-                # CHANGE #1: send a NEW turn message for individual turn logs
-                await send_new_turn_message(context, chat_id, game)
-                await start_turn_timer(
-                    context, chat_id, game,
-                    message_id=game.get("keyboard_message_id"),
-                    is_startgame=False,
+                # Step 1: Edit the ONE persistent keyboard message
+                from app.core.card_utils import format_card
+                picked_display = format_card(picked_card)
+                
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=game["keyboard_message_id"],
+                    text=(
+                        fmt.fmt_turn_announcement(game, 60) + 
+                        f"\n\n📥 Picked: {picked_display} — now drop a card!"
+                    ),
+                    reply_markup=keyboards.persistent_game_keyboard()
                 )
+                
+                # Step 2: Restart 60s timer for drop phase
+                await start_turn_timer(context, chat_id, game)
 
             # ── action:draw ───────────────────────────────────────────────────
             elif data == "action:draw":
@@ -128,13 +137,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     username=username, chat_id=chat_id,
                 )
 
-                # CHANGE #1: send a NEW turn message for individual turn logs
-                await send_new_turn_message(context, chat_id, game)
-                await start_turn_timer(
-                    context, chat_id, game,
-                    message_id=game.get("keyboard_message_id"),
-                    is_startgame=False,
+                # Step 1: Edit the ONE persistent keyboard message
+                from app.core.card_utils import format_card
+                drawn_display = format_card(drawn_card)
+                
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=game["keyboard_message_id"],
+                    text=(
+                        fmt.fmt_turn_announcement(game, 60) + 
+                        f"\n\n🎴 Drew: {drawn_display} — now drop a card!"
+                    ),
+                    reply_markup=keyboards.persistent_game_keyboard()
                 )
+                
+                # Step 2: Restart 60s timer for drop phase
+                await start_turn_timer(context, chat_id, game)
 
             # ── action:hand ───────────────────────────────────────────────────
             elif data == "action:hand":

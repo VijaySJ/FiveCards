@@ -235,6 +235,8 @@ async def intercept_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     text = update.effective_message.text.lower()
     
+    print(f"[DROP] Received from user={update.effective_user.id} text='{update.effective_message.text}' chat={update.effective_chat.id}")
+
     # Matches both "/drop" and "@bot /drop"
     if "/drop" in text or "drop" in text:
         # Extra guard: only trigger if it looks like a drop command token follows
@@ -244,11 +246,8 @@ async def intercept_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /drop [rank] [rank] ... — Discard card(s) by rank.
-
-    CHANGE #3: Accepts rank-only tokens. Suit is ignored.
-    Examples: /drop 9   /drop 9 9   /drop K K K
-    """
+    """Handle /drop [rank] [rank] ... — Discard card(s) by rank."""
+    print(f"[DROP] Received from user={update.effective_user.id} text='{update.message.text}' chat={update.effective_chat.id}")
     chat_id = update.effective_chat.id
     user = update.effective_user
 
@@ -307,22 +306,24 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
             )
             
-            # Cancel current player timer BEFORE advancing
+            # Step 1: Cancel current player timer
+            from app.bot.timer import cancel_turn_timer
             await cancel_turn_timer(context, chat_id)
             
-            # Advance to next player
-            game_engine.advance_turn(game)   # sync call — do NOT await
+            # Step 2: Advance turn — sync call, no await
+            game_engine.advance_turn(game)
             state_manager.update_game(chat_id, game)
             
-            # Get the NEW current player after rotation
-            new_player = game["players"][game["current_turn_idx"]]
+            # Step 3: Edit the ONE persistent keyboard message
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=game["keyboard_message_id"],
+                text=fmt.fmt_turn_announcement(game, 60),
+                reply_markup=keyboards.persistent_game_keyboard()
+            )
             
-            # CHANGE #1: send a NEW turn message for individual turn logs
-            from app.bot.helpers import send_new_turn_message
-            await send_new_turn_message(context, chat_id, game)
-            
-            # Start 60s timer for NEW player
-            await start_turn_timer(context, chat_id, game, message_id=game.get("keyboard_message_id"), is_startgame=False)
+            # Step 4: Start timer for new current player
+            await start_turn_timer(context, chat_id, game)
             logger.info("/drop %s by %s in chat %d (DIRECT DROP)", args, username, chat_id)
             return
 
@@ -338,14 +339,22 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # CHANGE #1: send a NEW turn message for individual turn logs
-        from app.bot.helpers import send_new_turn_message
-        await send_new_turn_message(context, chat_id, game)
-        await start_turn_timer(
-            context, chat_id, game,
-            message_id=game.get("keyboard_message_id"),
-            is_startgame=False,
+        # Step 1: Cancel and Advance
+        from app.bot.timer import cancel_turn_timer
+        await cancel_turn_timer(context, chat_id)
+        game_engine.advance_turn(game)
+        state_manager.update_game(chat_id, game)
+
+        # Step 2: Edit the ONE persistent keyboard message
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=game["keyboard_message_id"],
+            text=fmt.fmt_turn_announcement(game, 60),
+            reply_markup=keyboards.persistent_game_keyboard()
         )
+
+        # Step 3: Start timer for new player
+        await start_turn_timer(context, chat_id, game)
         logger.info("/drop %s by %s in chat %d", args, username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)

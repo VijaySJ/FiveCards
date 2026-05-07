@@ -299,71 +299,64 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("[DROP] Active: %s (%d), requester: %d", active_player["username"], active_player["user_id"], user.id)
 
         result = game_engine.process_drop(game, user.id, args)
-        hand_empty = result["hand_empty"]
-        logger.debug("[DROP] Drop successful! Hand empty: %s", hand_empty)
-
         state_manager.update_game(chat_id, game)
 
         player = state_manager.get_player(game, user.id)
         username = player["username"] if player else "Unknown"
 
         from app.core import card_utils
-        if result["is_direct_drop"]:
-            dropped_str = ", ".join(card_utils.format_card(c) for c in result["dropped"])
-            
-            # Announce direct drop in group
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=(
-                    f"🎯 Direct Drop! {username} dropped {dropped_str} "
-                    f"— matches open card!\n"
-                    f"✅ Skips picking a card. "
-                    f"{result['remaining']} card(s) remaining."
-                )
-            )
-            
-            # Step 1: Cancel current player timer
-            from app.bot.timer import cancel_turn_timer
-            await cancel_turn_timer(context, chat_id)
-            
-            # Step 2: Advance turn — sync call, no await
-            game_engine.advance_turn(game)
-            state_manager.update_game(chat_id, game)
-            
-            # Step 3: send a NEW turn message for individual turn logs
-            from app.bot.helpers import send_new_turn_message
-            await send_new_turn_message(context, chat_id, game)
-            
-            # Step 4: Start timer for new current player
-            await start_turn_timer(context, chat_id, game)
-            logger.info("/drop %s by %s in chat %d (DIRECT DROP)", args, username, chat_id)
-            return
-
-        # Determine what was actually dropped (last N cards added to discard pile)
-
-
-        # DM updated hand
-        hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
-        await send_dm(
-            context.bot, user.id, hand_msg,
-            username=username, chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(group_link),
-        )
-
-        # Step 1: Cancel and Advance
-        from app.bot.timer import cancel_turn_timer
-        await cancel_turn_timer(context, chat_id)
-        game_engine.advance_turn(game)
-        state_manager.update_game(chat_id, game)
-
-        # Step 2: send a NEW turn message for individual turn logs
+        from app.bot.timer import cancel_turn_timer, start_turn_timer
         from app.bot.helpers import send_new_turn_message
-        await send_new_turn_message(context, chat_id, game)
 
-        # Step 3: Start timer for new player
-        await start_turn_timer(context, chat_id, game)
-        logger.info("/drop %s by %s in chat %d", args, username, chat_id)
+        if result["turn_advanced"]:
+            # Turn ended for this player (Direct Drop or Hand Empty)
+            if result["is_direct_drop"]:
+                dropped_str = ", ".join(card_utils.format_card(c) for c in result["dropped"])
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=(
+                        f"🎯 Direct Drop! {username} dropped {dropped_str} — matches open card!\n"
+                        f"✅ Skips picking a card. {result['remaining']} card(s) remaining."
+                    )
+                )
+            elif result["hand_empty"]:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"✨ {username} dropped their last card(s)! Turn ended."
+                )
+
+            # Transition to next player
+            await cancel_turn_timer(context, chat_id)
+            await send_new_turn_message(context, chat_id, game)
+            await start_turn_timer(context, chat_id, game)
+            
+            logger.info("/drop by %s in chat %d (Turn Advanced)", username, chat_id)
+        else:
+            # Turn continues: player must now pick or draw
+            # DM updated hand
+            hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
+            group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
+            await send_dm(
+                context.bot, user.id, hand_msg,
+                username=username, chat_id=chat_id,
+                reply_markup=keyboards.dm_keyboard(group_link),
+            )
+
+            # Update the persistent keyboard message
+            dropped_str = ", ".join(card_utils.format_card(c) for c in result["dropped"])
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=game["keyboard_message_id"],
+                text=(
+                    fmt.fmt_turn_announcement(game, 60) + 
+                    f"\n\n📤 Dropped: {dropped_str} — now pick or draw!"
+                ),
+                reply_markup=keyboards.persistent_game_keyboard()
+            )
+
+            # Restart timer for the same player (drop phase finished, now pick phase)
+            await start_turn_timer(context, chat_id, game)
+            logger.info("/drop by %s in chat %d (Waiting to pick)", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
 

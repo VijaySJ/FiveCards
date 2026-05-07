@@ -104,7 +104,7 @@ def test_advance_turn_wraps_around():
     advance_turn(game)
 
     assert game["current_turn_idx"] == 0
-    assert game["turn_phase"] == "choose_action"
+    assert game["turn_phase"] == "must_discard"
     assert game["picked_card"] is None
 
 
@@ -177,9 +177,9 @@ def test_valid_multi_drop():
     game["turn_phase"] = "must_discard"
     game["players"][0]["hand"] = ["6H", "6D", "KD", "3C", "10S", "AS"]
 
-    hand_empty = process_drop(game, 1, ["6H", "6D"])
-
-    assert hand_empty is False
+    result = process_drop(game, 1, ["6H", "6D"])
+    
+    assert result["hand_empty"] is False
     assert "6H" not in game["players"][0]["hand"]
     assert "6D" not in game["players"][0]["hand"]
     assert len(game["players"][0]["hand"]) == 4
@@ -209,10 +209,11 @@ def test_process_timeout_during_must_discard():
     game["current_turn_idx"] = 0
 
     drawn, dropped, hand_empty = process_timeout(game, 1)
-    assert drawn is not None
+    assert drawn is None  # Should only drop, not draw yet
     assert len(dropped) == 1
-    assert game["current_turn_idx"] == 1
-    assert len(game["players"][0]["hand"]) == 3
+    assert game["turn_phase"] == "choose_action"
+    assert game["current_turn_idx"] == 0
+    assert len(game["players"][0]["hand"]) == 2
 
 
 def test_direct_drop_matches_open_card():
@@ -222,12 +223,13 @@ def test_direct_drop_matches_open_card():
     game["turn_phase"] = "must_discard"
     game["current_turn_idx"] = 0
 
-    hand_empty = process_drop(game, 1, ["9H"])
+    result = process_drop(game, 1, ["9H"])
     
-    assert not hand_empty
+    assert not result["hand_empty"]
     assert len(game["players"][0]["hand"]) == 1
     assert game["discard_pile"][-1] == "9H"
     assert game["current_turn_idx"] == 1
+    assert result["turn_advanced"] is True
 
 
 def test_direct_drop_invalid_rank():
@@ -237,11 +239,12 @@ def test_direct_drop_invalid_rank():
     game["turn_phase"] = "must_discard"
     game["current_turn_idx"] = 0
 
-    hand_empty = process_drop(game, 1, ["8H"])
+    result = process_drop(game, 1, ["8H"])
     
-    assert not hand_empty
+    assert not result["hand_empty"]
     assert len(game["players"][0]["hand"]) == 1
     assert game["discard_pile"][-1] == "8H"
     assert game["turn_phase"] == "choose_action"
     assert game["current_turn_idx"] == 0
+    assert result["turn_advanced"] is False
 

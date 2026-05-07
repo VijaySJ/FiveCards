@@ -54,20 +54,17 @@ class WrongPhaseError(GameException):
 
     # Message templates for each invalid action → phase combination
     _MESSAGES: dict[tuple[str, str], str] = {
-        # Tried to pick/draw but should be dropping
-        ("pick", "must_discard"):
-            "⚠️ You already picked a card! Drop a card first using /drop <card>",
-        ("draw", "must_discard"):
-            "⚠️ You already drew a card! Drop a card first using /drop <card>",
-        # Tried to declare but should be dropping
-        ("declare", "must_discard"):
+        # Tried to pick/draw/declare but should be dropping
+        ("pick", "choose_action"):
+            "⚠️ Drop a card first before picking!",
+        ("draw", "choose_action"):
+            "⚠️ Drop a card first before drawing!",
+        ("declare", "choose_action"):
             "⚠️ You need to drop a card first before declaring!",
+            
         # Tried to drop but should be picking/drawing
-        ("drop", "choose_action"):
-            "⚠️ Pick a card or draw from the pile first!",
-        # Tried to drop_prompt but should be picking/drawing
-        ("drop_prompt", "choose_action"):
-            "⚠️ Pick a card or draw from the pile first!",
+        ("drop", "must_discard"):
+            "⚠️ You already dropped a card! Pick or draw now.",
     }
 
     def __init__(self, expected_phase: str = "", action: str = "") -> None:
@@ -78,11 +75,11 @@ class WrongPhaseError(GameException):
                 super().__init__(msg)
                 return
 
-        # Fallback messages for backward compatibility
-        if expected_phase == "must_discard":
-            msg = "⚠️ You already have a card! Drop a card first using /drop <card>"
-        elif expected_phase == "choose_action":
-            msg = "⚠️ Pick a card or draw from the pile first!"
+        # Fallback messages
+        if expected_phase == "choose_action":
+            msg = "⚠️ Drop a card first!"
+        elif expected_phase == "must_discard":
+            msg = "⚠️ Pick a card or draw from the pile now!"
         else:
             msg = "🚫 You can't do that right now."
         super().__init__(msg)

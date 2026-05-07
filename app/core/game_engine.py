@@ -348,20 +348,28 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
             is_direct_drop = True
 
     game["picked_card"] = None
-    if not is_direct_drop:
-        game["last_action"] = f"👤 {player['username']} dropped {len(cards_to_remove)} card(s)"
-        if not player["hand"]:
-            advance_turn(game)
+
+    # Determine if turn should end
+    # Turn ends if: 1. Direct drop, OR 2. Hand is empty after normal drop
+    should_advance = is_direct_drop or not player["hand"]
+
+    if should_advance:
+        if is_direct_drop:
+            game["last_action"] = f"🎯 {player['username']} made a DIRECT DROP!"
         else:
-            game["turn_phase"] = "choose_action"
+            game["last_action"] = f"👤 {player['username']} finished their turn (0 cards left)"
+        
+        advance_turn(game)
     else:
-        game["last_action"] = f"🎯 {player['username']} made a DIRECT DROP!"
+        game["last_action"] = f"👤 {player['username']} dropped {len(cards_to_remove)} card(s)"
+        game["turn_phase"] = "choose_action"
 
     return {
         "is_direct_drop": is_direct_drop,
         "hand_empty": len(player["hand"]) == 0,
         "dropped": cards_to_remove,
-        "remaining": len(player["hand"])
+        "remaining": len(player["hand"]),
+        "turn_advanced": should_advance
     }
 
 

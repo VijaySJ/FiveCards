@@ -202,22 +202,13 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # CHANGE #1: edit the persistent keyboard message, do NOT send a new one
-        keyboard_msg_id = game.get("keyboard_message_id")
-        if keyboard_msg_id:
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=keyboard_msg_id,
-                    text=fmt.fmt_turn_announcement(game, 60),
-                    reply_markup=keyboards.persistent_game_keyboard(),
-                )
-            except Exception as e:
-                logger.warning("Could not edit keyboard after timeout: %s", e)
+        # CHANGE #1: send a NEW turn message for individual turn logs
+        from app.bot.callbacks import send_new_turn_message
+        await send_new_turn_message(context, chat_id, game)
 
         await start_turn_timer(
             context, chat_id, game,
-            message_id=keyboard_msg_id,
+            message_id=game.get("keyboard_message_id"),
             is_startgame=False,
         )
 

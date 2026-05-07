@@ -151,9 +151,9 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # CHANGE #1: edit persistent keyboard, do NOT send a new one
-        from app.bot.callbacks import _edit_persistent_keyboard
-        await _edit_persistent_keyboard(context, chat_id, game)
+        # CHANGE #1: send a NEW turn message for individual turn logs
+        from app.bot.callbacks import send_new_turn_message
+        await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(
             context, chat_id, game,
             message_id=game.get("keyboard_message_id"),
@@ -191,9 +191,9 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # CHANGE #1: edit persistent keyboard, do NOT send a new one
-        from app.bot.callbacks import _edit_persistent_keyboard
-        await _edit_persistent_keyboard(context, chat_id, game)
+        # CHANGE #1: send a NEW turn message for individual turn logs
+        from app.bot.callbacks import send_new_turn_message
+        await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(
             context, chat_id, game,
             message_id=game.get("keyboard_message_id"),
@@ -314,9 +314,9 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Get the NEW current player after rotation
             new_player = game["players"][game["current_turn_idx"]]
             
-            # EDIT the persistent keyboard message with new turn
-            from app.bot.callbacks import _edit_persistent_keyboard
-            await _edit_persistent_keyboard(context, chat_id, game)
+            # CHANGE #1: send a NEW turn message for individual turn logs
+            from app.bot.callbacks import send_new_turn_message
+            await send_new_turn_message(context, chat_id, game)
             
             # Start 60s timer for NEW player
             await start_turn_timer(context, chat_id, game, message_id=game.get("keyboard_message_id"), is_startgame=False)
@@ -339,9 +339,9 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # CHANGE #1: edit persistent keyboard, do NOT send a new one
-        from app.bot.callbacks import _edit_persistent_keyboard
-        await _edit_persistent_keyboard(context, chat_id, game)
+        # CHANGE #1: send a NEW turn message for individual turn logs
+        from app.bot.callbacks import send_new_turn_message
+        await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(
             context, chat_id, game,
             message_id=game.get("keyboard_message_id"),
@@ -487,7 +487,62 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /start — Welcome message when user starts the bot in DM."""
+    """Handle /start — Welcome message or deep-link handler."""
+    user = update.effective_user
+    if context.args and context.args[0] == "hand":
+        res = state_manager.find_game_by_user_id(user.id)
+        if not res:
+            await update.message.reply_text("❌ You are not in any active game.")
+            return
+        
+        chat_id, game = res
+        player = state_manager.get_player(game, user.id)
+        hand = player["hand"]
+        
+        if not hand:
+            await update.message.reply_text("🃏 Your hand is empty!")
+            return
+            
+        # Format the hand display
+        from app.core.card_utils import get_card_rank, get_card_suit, hand_value
+        suit_emoji = {'H':'♥️', 'D':'♦️', 'C':'♣️', 'S':'♠️', 'JK':'🃏'}
+        hand_lines = []
+        for card in hand:
+            rank = get_card_rank(card)
+            suit = get_card_suit(card)
+            emoji = suit_emoji.get(suit.upper(), '🂠')
+            hand_lines.append(f"  {rank} {emoji}")
+        
+        hand_text = "\n".join(hand_lines)
+        points = int(hand_value(hand, game["joker_rank"]))
+        
+        # Build deep link BACK to the group play area
+        raw_id = str(chat_id)
+        if raw_id.startswith("-100"):
+            channel_id = raw_id[4:]
+        else:
+            channel_id = raw_id.lstrip("-")
+        
+        keyboard_msg_id = game["keyboard_message_id"]
+        back_link = f"https://t.me/c/{channel_id}/{keyboard_msg_id}"
+        
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        back_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Go Back to Play Area", url=back_link)]
+        ])
+        
+        await update.message.reply_text(
+            f"🃏 *Your Hand*\n"
+            f"━━━━━━━━━━━━━━\n"
+            f"{hand_text}\n"
+            f"━━━━━━━━━━━━━━\n"
+            f"📊 Total: *{points} pts*\n\n"
+            f"_Tap below to return to the game_",
+            parse_mode="Markdown",
+            reply_markup=back_keyboard
+        )
+        return
+
     await update.message.reply_text(
         "🃏 Welcome to 5 Cards!\n\n"
         "Add me to a group and use /newgame to start playing.\n"

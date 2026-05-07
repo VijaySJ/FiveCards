@@ -182,3 +182,16 @@ def get_active_player(game: dict) -> Optional[dict]:
     if 0 <= idx < len(game["players"]):
         return game["players"][idx]
     return None
+
+
+def find_game_by_user_id(user_id: int) -> Optional[tuple[int, dict]]:
+    """Find an active game that the given user is part of.
+
+    Returns:
+        Tuple of (chat_id, game_dict) or None.
+    """
+    for chat_id, game in GAMES.items():
+        for player in game["players"]:
+            if player["user_id"] == user_id:
+                return chat_id, game
+    return None

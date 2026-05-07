@@ -195,7 +195,7 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Update DM for the timed-out player
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id)
+        group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
         await send_dm(
             context.bot, player_id, hand_msg,
             username=username, chat_id=chat_id,

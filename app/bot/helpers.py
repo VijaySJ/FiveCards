@@ -68,7 +68,7 @@ async def is_group_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
         return False
 
 
-async def get_group_link(bot: Bot, chat_id: int) -> str:
+async def get_group_link(bot: Bot, chat_id: int, message_id: int = 1) -> str:
     """Get the group's URL dynamically from Telegram.
 
     Tries in order:
@@ -101,7 +101,7 @@ async def get_group_link(bot: Bot, chat_id: int) -> str:
         clean_id = clean_id[4:]
     elif clean_id.startswith("-"):
         clean_id = clean_id[1:]
-    return f"https://t.me/c/{clean_id}/1"
+    return f"https://t.me/c/{clean_id}/{message_id}"
 
 async def send_new_turn_message(
     context,

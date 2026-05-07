@@ -144,21 +144,29 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Send updated hand via DM
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id)
+        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
         await send_dm(
             context.bot, user.id, hand_msg,
             username=username, chat_id=chat_id,
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # CHANGE #1: send a NEW turn message for individual turn logs
-        from app.bot.callbacks import send_new_turn_message
-        await send_new_turn_message(context, chat_id, game)
-        await start_turn_timer(
-            context, chat_id, game,
-            message_id=game.get("keyboard_message_id"),
-            is_startgame=False,
+        # Step 1: Edit the ONE persistent keyboard message
+        from app.core.card_utils import format_card
+        picked_display = format_card(picked_card)
+        
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=game["keyboard_message_id"],
+            text=(
+                fmt.fmt_turn_announcement(game, 60) + 
+                f"\n\n📥 Picked: {picked_display} — now drop a card!"
+            ),
+            reply_markup=keyboards.persistent_game_keyboard()
         )
+        
+        # Step 2: Restart 60s timer for drop phase
+        await start_turn_timer(context, chat_id, game)
         logger.info("/pick by %s in chat %d", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -184,21 +192,29 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Send hand via DM
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id)
+        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
         await send_dm(
             context.bot, user.id, hand_msg,
             username=username, chat_id=chat_id,
             reply_markup=keyboards.dm_keyboard(group_link),
         )
 
-        # CHANGE #1: send a NEW turn message for individual turn logs
-        from app.bot.callbacks import send_new_turn_message
-        await send_new_turn_message(context, chat_id, game)
-        await start_turn_timer(
-            context, chat_id, game,
-            message_id=game.get("keyboard_message_id"),
-            is_startgame=False,
+        # Step 1: Edit the ONE persistent keyboard message
+        from app.core.card_utils import format_card
+        drawn_display = format_card(drawn_card)
+        
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=game["keyboard_message_id"],
+            text=(
+                fmt.fmt_turn_announcement(game, 60) + 
+                f"\n\n🎴 Drew: {drawn_display} — now drop a card!"
+            ),
+            reply_markup=keyboards.persistent_game_keyboard()
         )
+        
+        # Step 2: Restart 60s timer for drop phase
+        await start_turn_timer(context, chat_id, game)
         logger.info("/draw by %s in chat %d", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -314,13 +330,9 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             game_engine.advance_turn(game)
             state_manager.update_game(chat_id, game)
             
-            # Step 3: Edit the ONE persistent keyboard message
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=game["keyboard_message_id"],
-                text=fmt.fmt_turn_announcement(game, 60),
-                reply_markup=keyboards.persistent_game_keyboard()
-            )
+            # Step 3: send a NEW turn message for individual turn logs
+            from app.bot.helpers import send_new_turn_message
+            await send_new_turn_message(context, chat_id, game)
             
             # Step 4: Start timer for new current player
             await start_turn_timer(context, chat_id, game)
@@ -332,7 +344,7 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # DM updated hand
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id)
+        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
         await send_dm(
             context.bot, user.id, hand_msg,
             username=username, chat_id=chat_id,
@@ -345,13 +357,9 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         game_engine.advance_turn(game)
         state_manager.update_game(chat_id, game)
 
-        # Step 2: Edit the ONE persistent keyboard message
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=game["keyboard_message_id"],
-            text=fmt.fmt_turn_announcement(game, 60),
-            reply_markup=keyboards.persistent_game_keyboard()
-        )
+        # Step 2: send a NEW turn message for individual turn logs
+        from app.bot.helpers import send_new_turn_message
+        await send_new_turn_message(context, chat_id, game)
 
         # Step 3: Start timer for new player
         await start_turn_timer(context, chat_id, game)

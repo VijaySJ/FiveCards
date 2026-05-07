@@ -134,8 +134,11 @@ def fmt_discard_prompt(username: str) -> str:
 
 def fmt_hand_dm(player: dict, joker_rank: str) -> str:
     """Format the private hand message sent via DM."""
+    from app.core.card_utils import hand_value
     hand = player["hand"]
     formatted = format_hand(hand, joker_rank)
+    pts = hand_value(hand, joker_rank)
+    
     lines = [
         "┌─────────────────────────┐",
         f"│  🎴 Your Hand ({len(hand)} cards)",
@@ -143,7 +146,8 @@ def fmt_hand_dm(player: dict, joker_rank: str) -> str:
         "",
         f"  {formatted}",
         "",
-        f"  🎭 Joker rank: {joker_rank}",
+        f"  📊 Total Points: {pts}",
+        f"  🎭 Joker rank  : {joker_rank}",
     ]
     return "\n".join(lines)
 

@@ -91,11 +91,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
                 # Confirm turn end via DM
+                group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
                 await send_dm(
                     context.bot, user.id,
                     "✅ You picked the open card. Now drop a card from your hand!\n\n"
                     + fmt.fmt_must_discard_dm(player, picked_card, game["joker_rank"]),
                     username=username, chat_id=chat_id,
+                    reply_markup=keyboards.dm_keyboard(group_link),
                 )
 
                 # Step 1: Edit the ONE persistent keyboard message
@@ -130,11 +132,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
                 # Confirm via DM
+                group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
                 await send_dm(
                     context.bot, user.id,
                     "✅ You drew a card. Now drop a card from your hand!\n\n"
                     + fmt.fmt_must_discard_dm(player, drawn_card, game["joker_rank"]),
                     username=username, chat_id=chat_id,
+                    reply_markup=keyboards.dm_keyboard(group_link),
                 )
 
                 # Step 1: Edit the ONE persistent keyboard message
@@ -163,7 +167,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 
                 # Send the hand to DM
                 hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-                group_link = await get_group_link(context.bot, chat_id)
+                group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
                 success = await send_dm(
                     context.bot, user.id, hand_msg,
                     username=player["username"], chat_id=chat_id,

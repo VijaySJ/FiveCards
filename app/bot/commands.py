@@ -274,8 +274,10 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except GameException as e:
         await update.message.reply_text(f"⚠️ {e.message}")
     except Exception as e:
+        # Senior OG Debugging: Show the actual error so we can fix it!
+        error_msg = f"❌ Internal error ({type(e).__name__}): {str(e)}"
         logger.error("Unexpected error in cmd_drop: %s", e, exc_info=True)
-        await update.message.reply_text("❌ An internal error occurred. Please try again.")
+        await update.message.reply_text(error_msg)
 
 
 async def cmd_declare(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

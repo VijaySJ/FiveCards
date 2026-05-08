@@ -136,4 +136,5 @@ async def send_new_turn_message(
         game["keyboard_message_id"] = msg.message_id
         state_manager.update_game(chat_id, game)
     except Exception as e:
-        logger.warning("Could not send new turn message: %s", e)
+        logger.error("Could not send new turn message: %s", e, exc_info=True)
+        raise e

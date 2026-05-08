@@ -134,40 +134,13 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         game = state_manager.get_game_or_raise(chat_id)
-        picked_card = game_engine.process_pick(game, user.id)
+        game_engine.process_pick(game, user.id)
         state_manager.update_game(chat_id, game)
 
-        player = state_manager.get_player(game, user.id)
-        username = player["username"] if player else "Unknown"
-
-
-
-        # Send updated hand via DM
-        hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
-        await send_dm(
-            context.bot, user.id, hand_msg,
-            username=username, chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(group_link),
-        )
-
-        # Step 1: Edit the ONE persistent keyboard message
-        from app.core.card_utils import format_card
-        picked_display = format_card(picked_card)
-        
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=game["keyboard_message_id"],
-            text=(
-                fmt.fmt_turn_announcement(game, 60) + 
-                f"\n\n📥 Picked: {picked_display} — now drop a card!"
-            ),
-            reply_markup=keyboards.persistent_game_keyboard()
-        )
-        
-        # Step 2: Restart 60s timer for drop phase
+        from app.bot.helpers import send_new_turn_message
+        await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(context, chat_id, game)
-        logger.info("/pick by %s in chat %d", username, chat_id)
+        logger.info("/pick by %d in chat %d", user.id, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
 
@@ -182,40 +155,13 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not game["deck"]:
             await update.message.reply_text(fmt.fmt_reshuffle_notice())
 
-        drawn_card = game_engine.process_draw(game, user.id)
+        game_engine.process_draw(game, user.id)
         state_manager.update_game(chat_id, game)
 
-        player = state_manager.get_player(game, user.id)
-        username = player["username"] if player else "Unknown"
-
-
-
-        # Send hand via DM
-        hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
-        await send_dm(
-            context.bot, user.id, hand_msg,
-            username=username, chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(group_link),
-        )
-
-        # Step 1: Edit the ONE persistent keyboard message
-        from app.core.card_utils import format_card
-        drawn_display = format_card(drawn_card)
-        
-        await context.bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=game["keyboard_message_id"],
-            text=(
-                fmt.fmt_turn_announcement(game, 60) + 
-                f"\n\n🎴 Drew: {drawn_display} — now drop a card!"
-            ),
-            reply_markup=keyboards.persistent_game_keyboard()
-        )
-        
-        # Step 2: Restart 60s timer for drop phase
+        from app.bot.helpers import send_new_turn_message
+        await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(context, chat_id, game)
-        logger.info("/draw by %s in chat %d", username, chat_id)
+        logger.info("/draw by %d in chat %d", user.id, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
 
@@ -246,31 +192,37 @@ def normalize_card(token: str) -> str:
 
 
 async def intercept_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Robustly catch /drop commands inside normal text messages (like bot mentions)."""
+    """Robustly catch /drop commands inside normal text messages."""
     if not update.effective_message or not update.effective_message.text:
         return
-    text = update.effective_message.text.lower()
+    text = update.effective_message.text.lower().strip()
     
-    print(f"[DROP] Received from user={update.effective_user.id} text='{update.effective_message.text}' chat={update.effective_chat.id}")
-
-    # Matches both "/drop" and "@bot /drop"
-    if "/drop" in text or "drop" in text:
-        # Extra guard: only trigger if it looks like a drop command token follows
-        tokens = text.split()
-        if any(t in ("/drop", "drop") for t in tokens):
-            await cmd_drop(update, context)
+    # Matches "/drop", "@bot /drop", "drop 9", etc.
+    # We look for the word "drop" and check if it's the start or preceded by a bot mention
+    tokens = text.split()
+    if not tokens:
+        return
+        
+    # Check if first token is 'drop' or '/drop'
+    # OR if first token is a mention and second is 'drop' or '/drop'
+    is_drop = False
+    if tokens[0] in ("drop", "/drop"):
+        is_drop = True
+    elif len(tokens) > 1 and tokens[0].startswith("@") and tokens[1] in ("drop", "/drop"):
+        is_drop = True
+        
+    if is_drop:
+        await cmd_drop(update, context)
 
 
 async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /drop [rank] [rank] ... — Discard card(s) by rank."""
-    print(f"[DROP] Received from user={update.effective_user.id} text='{update.message.text}' chat={update.effective_chat.id}")
     chat_id = update.effective_chat.id
     user = update.effective_user
 
     try:
         game = state_manager.get_game_or_raise(chat_id)
 
-        # Collect tokens from context.args OR parse directly from message text
         args = context.args or []
         if not args and update.message and update.message.text:
             text = update.message.text
@@ -284,79 +236,40 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if not args:
             await update.message.reply_text(
-                "❌ Usage: /drop [rank] [rank] ...\n"
-                "Examples:\n"
-                "  /drop 9        → drop one 9\n"
-                "  /drop 9 9      → drop two 9s\n"
-                "  /drop K K K    → drop three Kings"
+                "❌ Usage: /drop [rank]\n"
+                "Example: /drop 9  or  /drop K K"
             )
             return
-
-        # CHANGE #3: pass raw tokens; rank-only parsing is done in game_engine
-        logger.debug("[DROP] User %d attempting to drop tokens: %s", user.id, args)
-        logger.debug("[DROP] Current phase: %s", game["turn_phase"])
-        active_player = game["players"][game["current_turn_idx"]]
-        logger.debug("[DROP] Active: %s (%d), requester: %d", active_player["username"], active_player["user_id"], user.id)
 
         result = game_engine.process_drop(game, user.id, args)
         state_manager.update_game(chat_id, game)
 
-        player = state_manager.get_player(game, user.id)
-        username = player["username"] if player else "Unknown"
-
-        from app.core import card_utils
         from app.bot.timer import cancel_turn_timer, start_turn_timer
         from app.bot.helpers import send_new_turn_message
 
         if result["turn_advanced"]:
-            # Turn ended for this player (Direct Drop or Hand Empty)
-            if result["is_direct_drop"]:
-                dropped_str = ", ".join(card_utils.format_card(c) for c in result["dropped"])
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=(
-                        f"🎯 Direct Drop! {username} dropped {dropped_str} — matches open card!\n"
-                        f"✅ Skips picking a card. {result['remaining']} card(s) remaining."
-                    )
-                )
-            elif result["hand_empty"]:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"✨ {username} dropped their last card(s)! Turn ended."
-                )
-
-            # Transition to next player
+            # Turn ended (Match or Hand Empty)
+            await cancel_turn_timer(context, chat_id)
+            await send_new_turn_message(context, chat_id, game)
+            await start_turn_timer(context, chat_id, game)
+        else:
+            # Turn continues: player must now pick or draw
             await cancel_turn_timer(context, chat_id)
             await send_new_turn_message(context, chat_id, game)
             await start_turn_timer(context, chat_id, game)
             
-            logger.info("/drop by %s in chat %d (Turn Advanced)", username, chat_id)
-        else:
-            # Turn continues: player must now pick or draw
-            # DM updated hand
-            hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
+            # Also notify in DM that they must draw
+            player = state_manager.get_player(game, user.id)
+            from app.bot.helpers import send_dm
             group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
             await send_dm(
-                context.bot, user.id, hand_msg,
-                username=username, chat_id=chat_id,
+                context.bot, user.id,
+                f"❌ No Match! You must draw a card from the pile or pick the open card to end your turn.",
+                username=player["username"], chat_id=chat_id,
                 reply_markup=keyboards.dm_keyboard(group_link),
             )
 
-            # Update the persistent keyboard message
-            dropped_str = ", ".join(card_utils.format_card(c) for c in result["dropped"])
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=game["keyboard_message_id"],
-                text=(
-                    fmt.fmt_turn_announcement(game, 60) + 
-                    f"\n\n📤 Dropped: {dropped_str} — now pick or draw!"
-                ),
-                reply_markup=keyboards.persistent_game_keyboard()
-            )
-
-            # Restart timer for the same player (drop phase finished, now pick phase)
-            await start_turn_timer(context, chat_id, game)
-            logger.info("/drop by %s in chat %d (Waiting to pick)", username, chat_id)
+        logger.info("/drop by %d in chat %d", user.id, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
 
@@ -506,49 +419,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         chat_id, game = res
         player = state_manager.get_player(game, user.id)
-        hand = player["hand"]
         
-        if not hand:
-            await update.message.reply_text("🃏 Your hand is empty!")
-            return
-            
-        # Format the hand display
-        from app.core.card_utils import get_card_rank, get_card_suit, hand_value
-        suit_emoji = {'H':'♥️', 'D':'♦️', 'C':'♣️', 'S':'♠️', 'JK':'🃏'}
-        hand_lines = []
-        for card in hand:
-            rank = get_card_rank(card)
-            suit = get_card_suit(card)
-            emoji = suit_emoji.get(suit.upper(), '🂠')
-            hand_lines.append(f"  {rank} {emoji}")
-        
-        hand_text = "\n".join(hand_lines)
-        points = int(hand_value(hand, game["joker_rank"]))
-        
-        # Build deep link BACK to the group play area
-        raw_id = str(chat_id)
-        if raw_id.startswith("-100"):
-            channel_id = raw_id[4:]
-        else:
-            channel_id = raw_id.lstrip("-")
-        
-        keyboard_msg_id = game["keyboard_message_id"]
-        back_link = f"https://t.me/c/{channel_id}/{keyboard_msg_id}"
-        
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        back_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Go Back to Play Area", url=back_link)]
-        ])
+        hand_text = fmt.fmt_hand_dm(player, game["joker_rank"])
+        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
         
         await update.message.reply_text(
-            f"🃏 *Your Hand*\n"
-            f"━━━━━━━━━━━━━━\n"
-            f"{hand_text}\n"
-            f"━━━━━━━━━━━━━━\n"
-            f"📊 Total: *{points} pts*\n\n"
-            f"_Tap below to return to the game_",
-            parse_mode="Markdown",
-            reply_markup=back_keyboard
+            hand_text,
+            parse_mode="HTML",
+            reply_markup=keyboards.dm_keyboard(group_link)
         )
         return
 

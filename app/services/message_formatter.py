@@ -74,11 +74,7 @@ def fmt_game_starting(game: dict, time_left: int = 60) -> str:
 
 
 def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
-    """Format the persistent turn announcement shown in group chat.
-
-    This text is used as the body of the single persistent keyboard message
-    that is EDITED (not re-sent) on every turn change.
-    """
+    """Format the persistent turn announcement shown in group chat."""
     active = game["players"][game["current_turn_idx"]]
     open_card = game["discard_pile"][-1] if game["discard_pile"] else "—"
     open_display = _fmt_open_card(open_card)
@@ -86,37 +82,49 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     round_no = game["round_current"]
     total_rounds = game["rounds_total"]
 
-    player_lines = "\n".join(
-        f"  👤 {p['username']:<12} {'🎴' * min(len(p['hand']), 5)}{'…' if len(p['hand']) > 5 else ''}  ({len(p['hand'])}🃏)"
-        for p in game["players"]
-    )
+    # Aesthetic player list with card counts
+    player_lines = []
+    for p in game["players"]:
+        is_active = p["user_id"] == active["user_id"]
+        prefix = "▶️" if is_active else "👤"
+        card_count = len(p["hand"])
+        cards_display = "🎴" * min(card_count, 5) + ("…" if card_count > 5 else "")
+        line = f"{prefix} <b>{p['username']:<12}</b> {cards_display} ({card_count}🃏)"
+        player_lines.append(line)
+    
+    player_list_str = "\n".join(player_lines)
 
     last_action = game.get("last_action", "Game started!")
     
-    # Phase-specific instructions
+    # Phase-specific instructions (Premium wording)
     phase = game.get("turn_phase", "must_discard")
     if phase == "must_discard":
-        instruction = "👉 Drop card(s) from your hand!"
-    elif phase == "choose_action":
-        instruction = "👉 Take a Card from Deck or Pick Open Card!"
+        instruction = "📥 <b>ACTION REQUIRED:</b> Drop a card from your hand!"
+    elif phase == "must_draw":
+        instruction = "🎴 <b>NO MATCH:</b> Draw from pile or Pick open card!"
     else:
-        instruction = ""
+        instruction = "⌛ Waiting..."
 
     return (
-        f"╔════════════════════════╗\n"
-        f"║  🎮  5 CARDS  —  Round {round_no}/{total_rounds}  ║\n"
-        f"╚════════════════════════╝\n"
+        f"<b>┏━━━━━━━ 🃏 5 CARDS 🃏 ━━━━━━━┓</b>\n"
+        f"  <b>Round {round_no} of {total_rounds}</b>\n"
+        f"<b>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</b>\n"
         f"\n"
-        f"📤  Open Card  ›  {open_display}\n"
-        f"🃏  Joker Rank ›  {joker_rank}  (= 0 pts)\n"
-        f"📝  Status     ›  {last_action}\n"
+        f"📤  <b>Open Card:</b>  {open_display}\n"
+        f"🃏  <b>Joker Rank:</b> {joker_rank}  (Value: 0)\n"
+        f"📝  <b>Last Move:</b>  <i>{last_action}</i>\n"
         f"\n"
-        f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
-        f"▶️  {active['username']}'s Turn   ⏱ {time_left}s\n"
-        f"   {instruction}\n"
-        f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
+        f"👤 <b>Player:</b> {active['username']}\n"
+        f"⏱ <b>Time:</b> {time_left}s remaining\n"
         f"\n"
-        f"👥 Players & Scores:\n{player_lines}"
+        f"{instruction}\n"
+        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
+        f"\n"
+        f"👥 <b>Current Hands:</b>\n"
+        f"{player_list_str}\n"
+        f"\n"
+        f"<i>Tap the buttons below to play your turn</i>"
     )
 
 
@@ -132,42 +140,55 @@ def fmt_discard_prompt(username: str) -> str:
     return "\n".join(lines)
 
 
+def _fmt_hand_visual(hand: list[str], joker_rank: str) -> str:
+    """Format hand cards as vertical list with points."""
+    lines = []
+    for card in hand:
+        rank = get_card_rank(card)
+        suit = get_card_suit(card)
+        emoji = _SUIT_EMOJI.get(suit.upper(), suit)
+        pts = int(hand_value([card], joker_rank))
+        marker = "⭐" if pts == 0 else "  "
+        lines.append(f"{marker} {rank} {emoji}  →  {pts} pts")
+    return "\n".join(lines)
+
+
 def fmt_hand_dm(player: dict, joker_rank: str) -> str:
     """Format the private hand message sent via DM."""
-    from app.core.card_utils import hand_value
     hand = player["hand"]
-    formatted = format_hand(hand, joker_rank)
     pts = hand_value(hand, joker_rank)
     
-    lines = [
-        "┌─────────────────────────┐",
-        f"│  🎴 Your Hand ({len(hand)} cards)",
-        "└─────────────────────────┘",
-        "",
-        f"  {formatted}",
-        "",
-        f"  📊 Total Points: {pts}",
-        f"  🎭 Joker rank  : {joker_rank}",
-    ]
-    return "\n".join(lines)
+    return (
+        f"<b>┏━━━━━━━ 🃏 YOUR HAND 🃏 ━━━━━━━┓</b>\n"
+        f"  <b>Player:</b> {player['username']}\n"
+        f"<b>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</b>\n"
+        f"\n"
+        f"{_fmt_hand_visual(hand, joker_rank)}\n"
+        f"\n"
+        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
+        f"📊  <b>Total Points: {pts}</b>\n"
+        f"🃏  <b>Joker Rank:  {joker_rank}</b>\n"
+        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
+        f"\n"
+        f"<i>Tap below to return to the play area</i>"
+    )
 
 
-def fmt_must_discard_dm(player: dict, picked_card: str, joker_rank: str) -> str:
-    """Format the 'must discard' reminder sent via DM after pick/draw."""
-    lines = [
-        f"📥 You picked: {format_card(picked_card)}",
-        "",
-        "┌─────────────────────────┐",
-        f"│  🎴 Your Hand ({len(player['hand'])} cards)",
-        "└─────────────────────────┘",
-        f"  {format_hand(player['hand'], joker_rank)}",
-        "",
-        "👉 Go back to group & drop by rank:",
-        "   /drop 9        → drop one 9 (any suit)",
-        "   /drop 9 9      → drop two 9s",
-        "   /drop K K K    → drop three Kings",
-    ]
-    return "\n".join(lines)
+def fmt_must_draw_dm(player: dict, joker_rank: str) -> str:
+    """Format the reminder sent via DM when a player must draw."""
+    pts = hand_value(player["hand"], joker_rank)
+    return (
+        f"<b>┏━━━━━━━ 🃏 ACTION NEEDED 🃏 ━━━━━━━┓</b>\n"
+        f"  <b>No Match! You must draw a card.</b>\n"
+        f"<b>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</b>\n"
+        f"\n"
+        f"{_fmt_hand_visual(player['hand'], joker_rank)}\n"
+        f"\n"
+        f"<b>📊 Total Points: {pts}</b>\n"
+        f"\n"
+        f"👉 <b>Return to group and click:</b>\n"
+        f"   [🎴 Draw from Pile] or [📥 Pick Open Card]"
+    )
 
 
 def fmt_player_picked(username: str) -> str:

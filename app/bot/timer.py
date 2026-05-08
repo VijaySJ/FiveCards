@@ -143,6 +143,7 @@ async def update_timer_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
                     message_id=message_id,
                     text=fmt.fmt_turn_announcement(game, time_left),
                     reply_markup=keyboards.persistent_game_keyboard(),
+                    parse_mode="HTML",
                 )
             except Exception as e:
                 logger.debug("Timer update edit failed (ok if message unchanged): %s", e)

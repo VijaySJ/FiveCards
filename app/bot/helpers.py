@@ -87,7 +87,7 @@ async def get_group_link(bot: Bot, chat_id: int, message_id: int = 1) -> str:
         chat = await bot.get_chat(chat_id)
         # Public group with username
         if chat.username:
-            return f"https://t.me/{chat.username}"
+            return f"https://t.me/{chat.username}/{message_id}"
         # Private group with existing invite link
         if chat.invite_link:
             return chat.invite_link
@@ -122,6 +122,7 @@ async def send_new_turn_message(
             chat_id=chat_id,
             text=fmt.fmt_turn_announcement(game, time_left),
             reply_markup=keyboards.persistent_game_keyboard(),
+            parse_mode="HTML",
         )
         # Update state with the new message ID so timers can still edit THIS message
         game["keyboard_message_id"] = msg.message_id

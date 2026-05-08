@@ -106,16 +106,28 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
 
-            # ── action:hand ───────────────────────────────────────────────────
-            elif data == "action:hand":
+            # ── action:hand / show_hand ───────────────────────────────────────
+            elif data in ("action:hand", "action:show_hand"):
                 player = state_manager.get_player(game, user.id)
                 if not player:
                     await query.answer("❌ You are not in this game.", show_alert=True)
                     return
                 
-                # Redirect to bot DM with start parameter to show hand
-                bot_username = (await context.bot.get_me()).username
-                await query.answer(url=f"https://t.me/{bot_username}?start=hand")
+                # Option A: Direct DM (Faster)
+                hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
+                group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
+                sent = await send_dm(
+                    context.bot, user.id, hand_msg,
+                    username=player["username"], chat_id=chat_id,
+                    reply_markup=keyboards.dm_keyboard(group_link),
+                )
+                
+                if sent:
+                    await query.answer("📬 Hand sent to your DM!")
+                else:
+                    # Option B: Deep link fallback
+                    bot_username = (await context.bot.get_me()).username
+                    await query.answer(url=f"https://t.me/{bot_username}?start=hand")
                 return
 
             # ── action:declare (CHANGE #4) ────────────────────────────────────
@@ -196,7 +208,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
 
             # CHANGE #1: send a NEW turn message for individual turn logs
-            await _send_new_turn_message(context, chat_id, game)
+            await send_new_turn_message(context, chat_id, game)
             await start_turn_timer(
                 context, chat_id, game,
                 message_id=game.get("keyboard_message_id"),

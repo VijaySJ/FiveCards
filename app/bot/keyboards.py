@@ -45,11 +45,11 @@ def persistent_game_keyboard() -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(
                 "⏬ Drop the Card",
-                switch_inline_query_current_chat="/drop "
+                switch_inline_query_current_chat=f"@{BOT_USERNAME} /drop "
             ),
         ],
         [
-            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{BOT_USERNAME}?start=hand"),
+            InlineKeyboardButton("🃏 Card In Hand →", callback_data="action:show_hand"),
         ],
     ])
 

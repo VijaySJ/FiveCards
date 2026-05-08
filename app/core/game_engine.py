@@ -12,6 +12,7 @@ Drop Rule:
   If the player's hand becomes empty after a drop, they score 0.
 """
 
+import html
 import logging
 import random
 from typing import Optional
@@ -200,7 +201,8 @@ def process_pick(game: dict, player_id: int) -> str:
 
     picked = game["discard_pile"].pop()
     player["hand"].append(picked)
-    game["last_action"] = f"📥 {player['username']} picked the open card"
+    safe_name = html.escape(player['username'])
+    game["last_action"] = f"📥 {safe_name} picked the open card"
     game["picked_card"] = picked
     logger.info("Player %s picked %s from discard pile", player["username"], picked)
     advance_turn(game)
@@ -227,7 +229,8 @@ def process_draw(game: dict, player_id: int) -> str:
 
     drawn = game["deck"].pop(0)
     player["hand"].append(drawn)
-    game["last_action"] = f"🎴 {player['username']} drew from the pile"
+    safe_name = html.escape(player['username'])
+    game["last_action"] = f"🎴 {safe_name} drew from the pile"
     game["picked_card"] = drawn
     logger.info("Player %s drew %s from deck", player["username"], drawn)
     advance_turn(game)
@@ -343,13 +346,15 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
     should_advance = is_direct_drop or not player["hand"]
 
     if should_advance:
+        safe_name = html.escape(player['username'])
         if is_direct_drop:
-            game["last_action"] = f"🎯 {player['username']} made a DIRECT DROP!"
-        else:
-            game["last_action"] = f"✨ {player['username']} finished their turn (0 cards left)"
+            game["last_action"] = f"🎯 {safe_name} made a DIRECT DROP!"
+        elif not player["hand"]:
+            game["last_action"] = f"✨ {safe_name} finished their turn (0 cards left)"
         advance_turn(game)
     else:
-        game["last_action"] = f"👤 {player['username']} dropped {len(cards_to_remove)} card(s)"
+        safe_name = html.escape(player['username'])
+        game["last_action"] = f"👤 {safe_name} dropped {len(cards_to_remove)} card(s)"
         game["turn_phase"] = "must_draw"
 
     return {
@@ -388,13 +393,17 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
             if drop_rank == open_rank:
                 is_direct_drop = True
                 
+        safe_name = html.escape(player['username'])
         if is_direct_drop or not player["hand"]:
-            game["last_action"] = f"⏰ {player['username']} timed out (Direct Drop)"
+            if is_direct_drop:
+                game["last_action"] = f"⏰ {safe_name} timed out (Direct Drop)"
+            else:
+                game["last_action"] = f"⏰ {safe_name} timed out (Finished)"
             advance_turn(game)
             return None, dropped_cards, not player["hand"]
         else:
             # Phase changed to must_draw
-            game["last_action"] = f"⏰ {player['username']} timed out (Must Draw)"
+            game["last_action"] = f"⏰ {safe_name} timed out (Must Draw)"
             game["turn_phase"] = "must_draw"
             game["picked_card"] = None
             return None, dropped_cards, False

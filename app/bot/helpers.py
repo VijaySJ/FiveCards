@@ -9,6 +9,8 @@ from telegram import Bot
 from telegram.error import Forbidden
 
 from app.services import message_formatter as fmt
+from app.services import state_manager
+from app.bot import keyboards
 
 logger = logging.getLogger(__name__)
 
@@ -121,10 +123,6 @@ async def send_new_turn_message(
     
     This fulfills the user request for 'individual messages' per turn.
     """
-    from app.services import state_manager
-    from app.services import message_formatter as fmt
-    from app.bot import keyboards
-    
     try:
         msg = await context.bot.send_message(
             chat_id=chat_id,

@@ -245,9 +245,6 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = game_engine.process_drop(game, user.id, args)
         state_manager.update_game(chat_id, game)
 
-        from app.bot.timer import cancel_turn_timer, start_turn_timer
-        from app.bot.helpers import send_new_turn_message
-
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
             await cancel_turn_timer(context, chat_id)
@@ -261,7 +258,6 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             
             # Also notify in DM that they must draw
             player = state_manager.get_player(game, user.id)
-            from app.bot.helpers import send_dm
             group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
             await send_dm(
                 context.bot, user.id,

@@ -205,7 +205,6 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         # CHANGE #1: send a NEW turn message for individual turn logs
-        from app.bot.helpers import send_new_turn_message
         await send_new_turn_message(context, chat_id, game)
 
         await start_turn_timer(

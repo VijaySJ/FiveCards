@@ -35,13 +35,18 @@ async def send_dm(
         True if DM was sent successfully, False otherwise.
     """
     try:
-        await bot.send_message(chat_id=user_id, text=text, reply_markup=reply_markup)
+        await bot.send_message(
+            chat_id=user_id,
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
         return True
     except Forbidden:
         bot_me = await bot.get_me()
         if chat_id:
             warning = fmt.fmt_dm_warning(username, bot_me.username or "the_bot")
-            await bot.send_message(chat_id=chat_id, text=warning)
+            await bot.send_message(chat_id=chat_id, text=warning, parse_mode="HTML")
         logger.warning("Cannot DM user %s (%d) — privacy/block", username, user_id)
         return False
     except Exception as e:

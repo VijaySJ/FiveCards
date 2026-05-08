@@ -191,7 +191,8 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         if hand_empty:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=fmt.fmt_player_hand_empty(username)
+                text=fmt.fmt_player_hand_empty(username),
+                parse_mode="HTML"
             )
 
         # Update DM for the timed-out player

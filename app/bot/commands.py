@@ -14,7 +14,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin, get_group_link
+from app.bot.helpers import send_dm, is_group_admin, get_group_link, send_new_turn_message
 from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.config.settings import DEFAULT_ROUNDS, MAX_ROUNDS
 from app.core.exceptions import GameException
@@ -272,7 +272,10 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         logger.info("/drop by %d in chat %d", user.id, chat_id)
     except GameException as e:
-        await update.message.reply_text(e.message)
+        await update.message.reply_text(f"⚠️ {e.message}")
+    except Exception as e:
+        logger.error("Unexpected error in cmd_drop: %s", e, exc_info=True)
+        await update.message.reply_text("❌ An internal error occurred. Please try again.")
 
 
 async def cmd_declare(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -389,23 +392,20 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help — Show command list and rules summary."""
     await update.message.reply_text(
-        "🃏 *Five Cards — Help*\n\n"
-        "*Commands:*\n"
+        "<b>🃏 Five Cards — Help</b>\n\n"
+        "<b>Commands:</b>\n"
         "/newgame — Create a new game lobby (Admin only)\n"
         "/startgame — Start the game (Admin only)\n"
         "/endgame — End current game (Admin only)\n"
         "/join — Join the game lobby\n"
-        "/drop [rank] [rank] ... — Drop cards by rank\n"
-        "   /drop 9        → drop one 9 (any suit)\n"
-        "   /drop 9 9      → drop two 9s\n"
-        "   /drop K K K    → drop three Kings\n"
+        "/drop [rank] — Drop card(s) by rank (e.g. <code>/drop 9</code>)\n"
         "/declare — Declare at the start of your turn\n\n"
-        "*Turn Order:*\n"
-        "1️⃣ Drop a card first (start of turn)\n"
-        "2️⃣ Direct Drop (same rank as open) → turn ends\n"
-        "3️⃣ Normal Drop → Pick Open Card or Draw\n"
-        "⏱ 60 seconds per action or auto-play triggers",
-        parse_mode="Markdown"
+        "<b>Turn Order:</b>\n"
+        "1️⃣ <b>Drop</b> a card first (start of turn)\n"
+        "2️⃣ <b>Match Rank</b> (Direct Drop) → Turn ends immediately!\n"
+        "3️⃣ <b>No Match</b> → You must <b>Draw</b> from pile or <b>Pick</b> open card to end turn.\n\n"
+        "⏱ 60 seconds per action or auto-play triggers.",
+        parse_mode="HTML"
     )
 
 

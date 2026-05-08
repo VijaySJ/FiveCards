@@ -129,17 +129,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 state_manager.update_game(chat_id, game)
 
                 await context.bot.send_message(
-                    chat_id=chat_id, text=fmt.fmt_declaration(declarer_name),
+                    chat_id=chat_id,
+                    text=fmt.fmt_declaration(declarer_name),
+                    parse_mode="HTML"
                 )
                 await context.bot.send_message(
-                    chat_id=chat_id, text=fmt.fmt_all_hands_revealed(game),
+                    chat_id=chat_id,
+                    text=fmt.fmt_all_hands_revealed(game),
+                    parse_mode="HTML"
                 )
 
-                is_last = game_engine.is_game_over(game)
                 result_msg = fmt.fmt_round_result(game, round_scores, declarer_name)
+                is_last = game_engine.is_game_over(game)
                 await context.bot.send_message(
-                    chat_id=chat_id, text=result_msg,
+                    chat_id=chat_id,
+                    text=result_msg,
                     reply_markup=keyboards.next_round_keyboard(is_last),
+                    parse_mode="HTML"
                 )
 
 
@@ -160,7 +166,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         elif data == "see_scores":
             game = state_manager.get_game_or_raise(chat_id)
             scores_msg = fmt.fmt_scores(game)
-            await context.bot.send_message(chat_id=chat_id, text=scores_msg)
+            await context.bot.send_message(chat_id=chat_id, text=scores_msg, parse_mode="HTML")
 
         # ── next_round ────────────────────────────────────────────────────────
         elif data == "next_round":
@@ -211,7 +217,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             leaderboard = game_engine.end_game(game)
             state_manager.delete_game(chat_id)
             cancel_turn_timer(context, chat_id)
-            await context.bot.send_message(chat_id=chat_id, text=leaderboard)
+            await context.bot.send_message(chat_id=chat_id, text=leaderboard, parse_mode="HTML")
 
         else:
             logger.warning("Unknown callback data: %s", data)

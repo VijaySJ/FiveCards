@@ -106,9 +106,9 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         instruction = "⌛ Waiting..."
 
     return (
-        f"<b>┏━━━━━━━ 🃏 5 CARDS 🃏 ━━━━━━━┓</b>\n"
+        f"<b>╔═══════ 🃏 5 CARDS 🃏 ═══════╗</b>\n"
         f"  <b>Round {round_no} of {total_rounds}</b>\n"
-        f"<b>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</b>\n"
+        f"<b>╚═════════════════════════════╝</b>\n"
         f"\n"
         f"📤  <b>Open Card:</b>  {open_display}\n"
         f"🃏  <b>Joker Rank:</b> {joker_rank}  (Value: 0)\n"
@@ -124,7 +124,7 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         f"👥 <b>Current Hands:</b>\n"
         f"{player_list_str}\n"
         f"\n"
-        f"<i>Tap the buttons below to play your turn</i>"
+        f"<i>Tap buttons below to play your turn</i>"
     )
 
 
@@ -159,9 +159,9 @@ def fmt_hand_dm(player: dict, joker_rank: str) -> str:
     pts = hand_value(hand, joker_rank)
     
     return (
-        f"<b>┏━━━━━━━ 🃏 YOUR HAND 🃏 ━━━━━━━┓</b>\n"
+        f"<b>╔═══════ 🃏 YOUR HAND 🃏 ═══════╗</b>\n"
         f"  <b>Player:</b> {player['username']}\n"
-        f"<b>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</b>\n"
+        f"<b>╚═════════════════════════════╝</b>\n"
         f"\n"
         f"{_fmt_hand_visual(hand, joker_rank)}\n"
         f"\n"
@@ -178,9 +178,9 @@ def fmt_must_draw_dm(player: dict, joker_rank: str) -> str:
     """Format the reminder sent via DM when a player must draw."""
     pts = hand_value(player["hand"], joker_rank)
     return (
-        f"<b>┏━━━━━━━ 🃏 ACTION NEEDED 🃏 ━━━━━━━┓</b>\n"
+        f"<b>╔══════ 🃏 ACTION NEEDED 🃏 ══════╗</b>\n"
         f"  <b>No Match! You must draw a card.</b>\n"
-        f"<b>┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛</b>\n"
+        f"<b>╚═══════════════════════════════╝</b>\n"
         f"\n"
         f"{_fmt_hand_visual(player['hand'], joker_rank)}\n"
         f"\n"

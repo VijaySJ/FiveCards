@@ -114,7 +114,8 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         start_msg = fmt.fmt_turn_announcement(game, 60)
         msg = await update.message.reply_text(
             start_msg,
-            reply_markup=keyboards.persistent_game_keyboard()
+            reply_markup=keyboards.persistent_game_keyboard(),
+            parse_mode="HTML"
         )
 
         # Store keyboard_message_id in game state so all callers can edit it
@@ -288,12 +289,12 @@ async def cmd_declare(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         state_manager.update_game(chat_id, game)
         cancel_turn_timer(context, chat_id)
 
-        await update.message.reply_text(fmt.fmt_declaration(declarer_name))
-        await update.message.reply_text(fmt.fmt_all_hands_revealed(game))
+        await update.message.reply_text(fmt.fmt_declaration(declarer_name), parse_mode="HTML")
+        await update.message.reply_text(fmt.fmt_all_hands_revealed(game), parse_mode="HTML")
 
         result_msg = fmt.fmt_round_result(game, round_scores, declarer_name)
         is_last = game_engine.is_game_over(game)
-        await update.message.reply_text(result_msg, reply_markup=keyboards.next_round_keyboard(is_last))
+        await update.message.reply_text(result_msg, reply_markup=keyboards.next_round_keyboard(is_last), parse_mode="HTML")
         logger.info("/declare by %s in chat %d", declarer_name, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -329,7 +330,7 @@ async def cmd_scores(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         return
 
     game = state_manager.get_game(chat_id)
-    await update.message.reply_text(fmt.fmt_scores(game))
+    await update.message.reply_text(fmt.fmt_scores(game), parse_mode="HTML")
 
 
 async def cmd_debugstate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -359,7 +360,7 @@ async def cmd_debugstate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             indicator = "▶️ " if idx == game['current_turn_idx'] else "   "
             lines.append(f"{indicator}{p['username']} (ID: {p['user_id']}) — Hand: {p['hand']}")
             
-        await update.message.reply_text("\n".join(lines))
+        await update.message.reply_text("\n".join(lines), parse_mode="HTML")
     except GameException as e:
         await update.message.reply_text(e.message)
 
@@ -379,7 +380,7 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         leaderboard = game_engine.end_game(game)
         state_manager.delete_game(chat_id)
         cancel_turn_timer(context, chat_id)
-        await update.message.reply_text(leaderboard)
+        await update.message.reply_text(leaderboard, parse_mode="HTML")
         logger.info("/endgame by admin in chat %d", chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)

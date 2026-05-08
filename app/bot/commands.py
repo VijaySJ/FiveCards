@@ -443,6 +443,47 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # ══════════════════════════════════════════════════════════════════
 
 
+async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle inline queries for the /drop rank picker."""
+    query = update.inline_query
+    if not query:
+        return
+    
+    text = query.query.lower().strip()
+    if not text.startswith("/drop"):
+        return
+        
+    user_id = query.from_user.id
+    # Find the game where this user is active
+    game_data = state_manager.find_game_by_user_id(user_id)
+    if not game_data:
+        return
+        
+    chat_id, game = game_data
+    player = state_manager.get_player(game, user_id)
+    if not player:
+        return
+        
+    # Get unique ranks in hand
+    ranks = sorted(list(set(game_engine.get_ranks_in_hand(player["hand"]))))
+    
+    from telegram import InlineQueryResultArticle, InputTextMessageContent
+    import uuid
+    
+    results = []
+    for r in ranks:
+        results.append(
+            InlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title=f"Drop {r}",
+                description=f"Drop card(s) of rank {r}",
+                input_message_content=InputTextMessageContent(f"/drop {r}")
+            )
+        )
+        
+    await query.answer(results, cache_time=1)
+
+
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle unrecognized commands with a help hint."""
     if update.message and update.message.text and update.message.text.startswith("/"):

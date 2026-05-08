@@ -5,7 +5,10 @@ Builds user-facing message strings for group chat and DM.
 No Telegram API calls — just string construction.
 """
 
+import html
 import logging
+import random
+from typing import Optional
 
 from app.core.card_utils import format_card, format_hand, hand_value, get_card_rank, get_card_suit
 from app.config.settings import DECLARATION_PENALTY
@@ -89,7 +92,8 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         prefix = "▶️" if is_active else "👤"
         card_count = len(p["hand"])
         cards_display = "🎴" * min(card_count, 5) + ("…" if card_count > 5 else "")
-        line = f"{prefix} <b>{p['username']:<12}</b> {cards_display} ({card_count}🃏)"
+        safe_name = html.escape(p['username'])
+        line = f"{prefix} <b>{safe_name:<12}</b> {cards_display} ({card_count}🃏)"
         player_lines.append(line)
     
     player_list_str = "\n".join(player_lines)
@@ -105,6 +109,7 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     else:
         instruction = "⌛ Waiting..."
 
+    safe_active_name = html.escape(active['username'])
     return (
         f"<b>╔═══════ 🃏 5 CARDS 🃏 ═══════╗</b>\n"
         f"  <b>Round {round_no} of {total_rounds}</b>\n"
@@ -115,7 +120,7 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         f"📝  <b>Last Move:</b>  <i>{last_action}</i>\n"
         f"\n"
         f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
-        f"👤 <b>Player:</b> {active['username']}\n"
+        f"👤 <b>Player:</b> {safe_active_name}\n"
         f"⏱ <b>Time:</b> {time_left}s remaining\n"
         f"\n"
         f"{instruction}\n"
@@ -158,9 +163,10 @@ def fmt_hand_dm(player: dict, joker_rank: str) -> str:
     hand = player["hand"]
     pts = hand_value(hand, joker_rank)
     
+    safe_name = html.escape(player['username'])
     return (
         f"<b>╔═══════ 🃏 YOUR HAND 🃏 ═══════╗</b>\n"
-        f"  <b>Player:</b> {player['username']}\n"
+        f"  <b>Player:</b> {safe_name}\n"
         f"<b>╚═════════════════════════════╝</b>\n"
         f"\n"
         f"{_fmt_hand_visual(hand, joker_rank)}\n"

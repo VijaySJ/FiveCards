@@ -88,11 +88,14 @@ async def get_group_link(bot: Bot, chat_id: int, message_id: int = 1) -> str:
     Returns:
         URL string for the group chat.
     """
+    # Ensure message_id is at least 1 and not None
+    msg_id = message_id if message_id else 1
+
     try:
         chat = await bot.get_chat(chat_id)
         # Public group with username
         if chat.username:
-            return f"https://t.me/{chat.username}/{message_id}"
+            return f"https://t.me/{chat.username}/{msg_id}"
         # Private group with existing invite link
         if chat.invite_link:
             return chat.invite_link
@@ -106,7 +109,7 @@ async def get_group_link(bot: Bot, chat_id: int, message_id: int = 1) -> str:
         clean_id = clean_id[4:]
     elif clean_id.startswith("-"):
         clean_id = clean_id[1:]
-    return f"https://t.me/c/{clean_id}/{message_id}"
+    return f"https://t.me/c/{clean_id}/{msg_id}"
 
 async def send_new_turn_message(
     context,

@@ -49,7 +49,7 @@ def persistent_game_keyboard() -> InlineKeyboardMarkup:
             ),
         ],
         [
-            InlineKeyboardButton("🃏 Card In Hand →", callback_data="action:hand"),
+            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{BOT_USERNAME}?start=hand"),
         ],
     ])
 

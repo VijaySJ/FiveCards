@@ -80,6 +80,11 @@ def main() -> None:
     # ── Callback query handler ────────────────────────────────────
     app.add_handler(CallbackQueryHandler(handle_callback))
 
+    # ── Inline query handler (for rank picker) ───────────────────
+    from app.bot.commands import cmd_inline_query
+    from telegram.ext import InlineQueryHandler
+    app.add_handler(InlineQueryHandler(cmd_inline_query))
+
     # ── Fallback for unknown commands ─────────────────────────────
     app.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
 

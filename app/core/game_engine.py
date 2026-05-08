@@ -546,3 +546,9 @@ def _reshuffle_discard_to_deck(game: dict) -> None:
     game["discard_pile"] = [top_card]
     game["deck"] = card_utils.shuffle_deck(cards_to_shuffle)
     logger.info("Reshuffled %d cards from discard pile into deck", len(game["deck"]))
+
+
+def get_ranks_in_hand(hand: list[str]) -> list[str]:
+    """Return a list of unique ranks present in the given hand."""
+    from app.core.card_utils import get_card_rank
+    return list(set(get_card_rank(c) for c in hand))

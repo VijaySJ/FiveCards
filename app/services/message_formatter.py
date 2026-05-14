@@ -158,13 +158,8 @@ def _fmt_hand_visual(hand: list[str], joker_rank: str) -> str:
     for card in hand:
         pts = int(hand_value([card], joker_rank))
         marker = "⭐" if pts == 0 else "  "
-        if is_joker_card(card):
-            lines.append(f"{marker} JK  →  {pts} pts")
-        else:
-            rank = get_card_rank(card)
-            suit = get_card_suit(card)
-            emoji = _SUIT_EMOJI.get(suit.upper(), suit)
-            lines.append(f"{marker} {rank} {emoji}  →  {pts} pts")
+        display = format_card(card)
+        lines.append(f"{marker} {display}  →  {pts} pts")
     return "\n".join(lines)
 
 

@@ -135,7 +135,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 declarer = state_manager.get_player(game, user.id)
                 declarer_name = declarer["username"] if declarer else "Unknown"
 
-                cancel_turn_timer(context, chat_id)
+                await cancel_turn_timer(context, chat_id)
 
                 round_scores = game_engine.process_declare(game, user.id)
                 state_manager.update_game(chat_id, game)
@@ -228,7 +228,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             leaderboard = game_engine.end_game(game)
             state_manager.delete_game(chat_id)
-            cancel_turn_timer(context, chat_id)
+            await cancel_turn_timer(context, chat_id)
             await context.bot.send_message(chat_id=chat_id, text=leaderboard, parse_mode="HTML")
 
         else:

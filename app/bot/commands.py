@@ -288,7 +288,7 @@ async def cmd_declare(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         round_scores = game_engine.process_declare(game, user.id)
         state_manager.update_game(chat_id, game)
-        cancel_turn_timer(context, chat_id)
+        await cancel_turn_timer(context, chat_id)
 
         await update.message.reply_text(fmt.fmt_declaration(declarer_name), parse_mode="HTML")
         await update.message.reply_text(fmt.fmt_all_hands_revealed(game), parse_mode="HTML")
@@ -380,7 +380,7 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         leaderboard = game_engine.end_game(game)
         state_manager.delete_game(chat_id)
-        cancel_turn_timer(context, chat_id)
+        await cancel_turn_timer(context, chat_id)
         await update.message.reply_text(leaderboard, parse_mode="HTML")
         logger.info("/endgame by admin in chat %d", chat_id)
     except GameException as e:

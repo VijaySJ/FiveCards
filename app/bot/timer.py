@@ -5,7 +5,7 @@ from app.services import state_manager
 from app.core import game_engine
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, get_group_link
+from app.bot.helpers import send_dm, get_group_link, send_new_turn_message
 from app.core.exceptions import GameException
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
             logger.error("Error in pending_auto_declare for %s: %s", current_player["username"], e)
         return
 
-    cancel_turn_timer(context, chat_id)
+    await cancel_turn_timer(context, chat_id)
 
     round_num = game["round_current"]
     player_id = game["players"][turn_idx]["user_id"]
@@ -81,7 +81,7 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
     )
 
 
-def cancel_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
+async def cancel_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
     """Cancel any existing timer for the chat."""
     if not context.job_queue:
         return

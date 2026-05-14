@@ -45,7 +45,7 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot") -> InlineKeyboa
         [
             InlineKeyboardButton(
                 "⏬ Drop the Card",
-                switch_inline_query_current_chat=f"@{bot_username} /drop "
+                switch_inline_query_current_chat="/drop"
             ),
         ],
         [

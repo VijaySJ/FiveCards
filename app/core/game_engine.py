@@ -140,6 +140,7 @@ def deal_initial_cards(game: dict) -> dict[int, list[str]]:
     game["turn_phase"] = "must_discard"
     game["picked_card"] = None
     game["declared_by_id"] = None
+    game["cards_dropped_this_turn"] = 0
 
     logger.info(
         "Dealt cards for round %d in chat %d: joker_rank=%s, open_card=%s, deck=%d cards",
@@ -196,14 +197,25 @@ def process_pick(game: dict, player_id: int) -> str:
 
     if game["turn_phase"] != "must_draw":
         raise WrongPhaseError("must_draw", action="pick")
-    if not game["discard_pile"]:
-        raise InvalidActionError("❌ Discard pile is empty!")
+    
+    cards_dropped = game.get("cards_dropped_this_turn", 0)
+    if len(game["discard_pile"]) <= cards_dropped:
+        raise InvalidActionError("❌ No open card to pick!")
+
+    dropped_cards = []
+    for _ in range(cards_dropped):
+        dropped_cards.append(game["discard_pile"].pop())
 
     picked = game["discard_pile"].pop()
     player["hand"].append(picked)
+    
+    for card in reversed(dropped_cards):
+        game["discard_pile"].append(card)
+
     safe_name = html.escape(player['username'])
     game["last_action"] = f"📥 {safe_name} picked the open card"
     game["picked_card"] = picked
+    game["cards_dropped_this_turn"] = 0
     logger.info("Player %s picked %s from discard pile", player["username"], picked)
     advance_turn(game)
     return picked
@@ -232,6 +244,7 @@ def process_draw(game: dict, player_id: int) -> str:
     safe_name = html.escape(player['username'])
     game["last_action"] = f"🎴 {safe_name} drew from the pile"
     game["picked_card"] = drawn
+    game["cards_dropped_this_turn"] = 0
     logger.info("Player %s drew %s from deck", player["username"], drawn)
     advance_turn(game)
     return drawn
@@ -324,6 +337,8 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
     for card in cards_to_remove:
         player["hand"].remove(card)
         game["discard_pile"].append(card)
+        
+    game["cards_dropped_this_turn"] = count_to_drop
 
     logger.info(
         "Player %s dropped %s (%d card(s)), %d remaining",
@@ -469,6 +484,7 @@ def advance_turn(game: dict) -> None:
     game["current_turn_idx"] = (game["current_turn_idx"] + 1) % num_players
     game["turn_phase"] = "must_discard"
     game["picked_card"] = None
+    game["cards_dropped_this_turn"] = 0
     next_player = game["players"][game["current_turn_idx"]]
     logger.info("Turn advanced to %s (%d)", next_player["username"], next_player["user_id"])
 

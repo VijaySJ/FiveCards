@@ -30,7 +30,6 @@ from app.bot.commands import (
     cmd_debugstate,
     cmd_endgame,
     cmd_help,
-    handle_unknown,
 )
 from app.bot.callbacks import handle_callback
 
@@ -84,9 +83,6 @@ def main() -> None:
     from app.bot.commands import cmd_inline_query
     from telegram.ext import InlineQueryHandler
     app.add_handler(InlineQueryHandler(cmd_inline_query))
-
-    # ── Fallback for unknown commands ─────────────────────────────
-    app.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
 
     # ── Start polling ─────────────────────────────────────────────
     logger.info("Bot is running! Press Ctrl+C to stop.")

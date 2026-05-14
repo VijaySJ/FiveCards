@@ -483,7 +483,3 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await query.answer(results, cache_time=1)
 
 
-async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle unrecognized commands with a help hint."""
-    if update.message and update.message.text and update.message.text.startswith("/"):
-        await update.message.reply_text("❓ Unknown command. Try /help for a list of commands.")

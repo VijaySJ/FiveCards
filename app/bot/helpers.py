@@ -121,10 +121,11 @@ async def send_new_turn_message(
     This fulfills the user request for 'individual messages' per turn.
     """
     try:
+        bot_info = await context.bot.get_me()
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text=fmt.fmt_turn_announcement(game, time_left),
-            reply_markup=keyboards.persistent_game_keyboard(),
+            reply_markup=keyboards.persistent_game_keyboard(bot_info.username),
             parse_mode="HTML",
         )
         # Update state with the new message ID so timers can still edit THIS message

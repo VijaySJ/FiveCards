@@ -112,9 +112,10 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
         # CHANGE #1: Send the ONE persistent keyboard message and store its ID
         start_msg = fmt.fmt_turn_announcement(game, 60)
+        bot_info = await context.bot.get_me()
         msg = await update.message.reply_text(
             start_msg,
-            reply_markup=keyboards.persistent_game_keyboard(),
+            reply_markup=keyboards.persistent_game_keyboard(bot_info.username),
             parse_mode="HTML"
         )
 

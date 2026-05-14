@@ -138,11 +138,12 @@ async def update_timer_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if message_id:
             try:
+                bot_info = await context.bot.get_me()
                 await context.bot.edit_message_text(
                     chat_id=chat_id,
                     message_id=message_id,
                     text=fmt.fmt_turn_announcement(game, time_left),
-                    reply_markup=keyboards.persistent_game_keyboard(),
+                    reply_markup=keyboards.persistent_game_keyboard(bot_info.username),
                     parse_mode="HTML",
                 )
             except Exception as e:

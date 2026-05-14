@@ -79,7 +79,14 @@ def fmt_game_starting(game: dict, time_left: int = 60) -> str:
 def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     """Format the persistent turn announcement shown in group chat."""
     active = game["players"][game["current_turn_idx"]]
-    open_card = game["discard_pile"][-1] if game["discard_pile"] else "—"
+    # Rule Fix: The dropped card only becomes the 'Open Card' for the NEXT player.
+    # While the current player is in 'must_draw' phase (trying to match or draw),
+    # we should still show the card they were matching against.
+    if game["turn_phase"] == "must_draw" and len(game["discard_pile"]) >= 2:
+        open_card = game["discard_pile"][-2]
+    else:
+        open_card = game["discard_pile"][-1] if game["discard_pile"] else "—"
+    
     open_display = _fmt_open_card(open_card)
     joker_rank = game["joker_rank"]
     round_no = game["round_current"]

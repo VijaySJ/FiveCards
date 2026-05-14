@@ -10,7 +10,7 @@ import logging
 import random
 from typing import Optional
 
-from app.core.card_utils import format_card, format_hand, hand_value, get_card_rank, get_card_suit
+from app.core.card_utils import format_card, format_hand, hand_value, get_card_rank, get_card_suit, is_joker_card
 from app.config.settings import DECLARATION_PENALTY
 
 logger = logging.getLogger(__name__)
@@ -156,12 +156,15 @@ def _fmt_hand_visual(hand: list[str], joker_rank: str) -> str:
     """Format hand cards as vertical list with points."""
     lines = []
     for card in hand:
-        rank = get_card_rank(card)
-        suit = get_card_suit(card)
-        emoji = _SUIT_EMOJI.get(suit.upper(), suit)
         pts = int(hand_value([card], joker_rank))
         marker = "⭐" if pts == 0 else "  "
-        lines.append(f"{marker} {rank} {emoji}  →  {pts} pts")
+        if is_joker_card(card):
+            lines.append(f"{marker} JK  →  {pts} pts")
+        else:
+            rank = get_card_rank(card)
+            suit = get_card_suit(card)
+            emoji = _SUIT_EMOJI.get(suit.upper(), suit)
+            lines.append(f"{marker} {rank} {emoji}  →  {pts} pts")
     return "\n".join(lines)
 
 

@@ -139,12 +139,10 @@ def build_leaderboard(game: dict) -> str:
         else:
             badge = f"#{idx + 1}"
 
-        round_details = " + ".join(str(int(s)) for s in player["round_scores"])
-        if not round_details:
-            round_details = "—"
+        rounds_count = len(player["round_scores"])
 
         lines.append(f"{badge}  {player['username']}:  {int(player['total_score'])} pts")
-        lines.append(f"     Rounds: {round_details}")
+        lines.append(f"     Rounds: {rounds_count}")
         lines.append("")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━")

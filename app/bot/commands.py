@@ -5,6 +5,7 @@ Each function handles one /command. All are async
 (python-telegram-bot v20.7 pattern).
 """
 
+import html
 import logging
 
 from telegram import Update
@@ -260,14 +261,13 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await send_new_turn_message(context, chat_id, game)
             await start_turn_timer(context, chat_id, game)
             
-            # Also notify in DM that they must draw
+            # Also notify in group that they must draw
             player = state_manager.get_player(game, user.id)
-            group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
-            await send_dm(
-                context.bot, user.id,
-                f"❌ No Match! You must draw a card from the pile or pick the open card to end your turn.",
-                username=player["username"], chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(group_link),
+            safe_name = html.escape(player['username'])
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ <b>No Match!</b>\n👤 {safe_name}, you must draw a card from the pile or pick the open card to end your turn.",
+                parse_mode="HTML"
             )
 
         logger.info("/drop by %d in chat %d", user.id, chat_id)

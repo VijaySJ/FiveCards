@@ -411,17 +411,21 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
         safe_name = html.escape(player['username'])
         if is_direct_drop or not player["hand"]:
             if is_direct_drop:
-                game["last_action"] = f"⏰ {safe_name} timed out (Direct Drop)"
+                game["last_action"] = f"⏰ {safe_name} timed out (Auto Direct Drop)"
             else:
                 game["last_action"] = f"⏰ {safe_name} timed out (Finished)"
             advance_turn(game)
             return None, dropped_cards, not player["hand"]
         else:
-            # Phase changed to must_draw
-            game["last_action"] = f"⏰ {safe_name} timed out (Must Draw)"
-            game["turn_phase"] = "must_draw"
+            # Auto-draw immediately instead of waiting for another timeout
+            if not game["deck"]:
+                _reshuffle_discard_to_deck(game)
+            drawn_card = game["deck"].pop(0)
+            player["hand"].append(drawn_card)
+            game["last_action"] = f"⏰ {safe_name} timed out (Auto Drop & Draw)"
             game["picked_card"] = None
-            return None, dropped_cards, False
+            advance_turn(game)
+            return drawn_card, dropped_cards, False
 
     elif game["turn_phase"] == "must_draw":
         if not game["deck"]:

@@ -179,10 +179,14 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         if dropped_cards:
             announcement = (
                 f"⏰ <b>Time's up!</b>\n"
-                f"{username} took too long and randomly dropped: {', '.join(dropped_cards)}"
+                f"👤 {username} took too long and randomly dropped: {', '.join(dropped_cards)}"
             )
+            if drawn_card:
+                announcement += f"\n🎴 And automatically drew from the pile."
+        elif drawn_card:
+            announcement = f"⏰ <b>Time's up!</b>\n👤 {username} took too long and automatically drew from the pile."
         else:
-            announcement = f"⏰ <b>Time's up!</b>\n{username} had no cards to drop!"
+            announcement = f"⏰ <b>Time's up!</b>\n👤 {username} had no cards to drop!"
         await context.bot.send_message(
             chat_id=chat_id,
             text=announcement,

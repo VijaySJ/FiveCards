@@ -32,10 +32,6 @@ async def cmd_newgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     chat_id = update.effective_chat.id
     user = update.effective_user
 
-    if not await is_group_admin(context.bot, chat_id, user.id):
-        await update.message.reply_text("🚫 Only group admins can start a new game.")
-        return
-
     if state_manager.game_exists(chat_id):
         existing = state_manager.get_game(chat_id)
         if existing and existing["status"] != "ended":
@@ -87,8 +83,8 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         game = state_manager.get_game_or_raise(chat_id)
 
         is_admin = await is_group_admin(context.bot, chat_id, user.id)
-        if not is_admin:
-            await update.message.reply_text("🚫 Only group admins can start the game.")
+        if game["admin_id"] != user.id and not is_admin:
+            await update.message.reply_text("🚫 Only the game creator or group admins can start the game.")
             return
         if game["status"] != "waiting":
             await update.message.reply_text("❌ Game has already started!")
@@ -375,8 +371,8 @@ async def cmd_endgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         game = state_manager.get_game_or_raise(chat_id)
         is_admin = await is_group_admin(context.bot, chat_id, user.id)
-        if not is_admin:
-            await update.message.reply_text("🚫 Only group admins can end the game.")
+        if game["admin_id"] != user.id and not is_admin:
+            await update.message.reply_text("🚫 Only the game creator or group admins can end the game.")
             return
 
         leaderboard = game_engine.end_game(game)
@@ -393,9 +389,9 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "<b>🃏 Five Cards — Help</b>\n\n"
         "<b>Commands:</b>\n"
-        "/newgame — Create a new game lobby (Admin only)\n"
-        "/startgame — Start the game (Admin only)\n"
-        "/endgame — End current game (Admin only)\n"
+        "/newgame — Create a new game lobby\n"
+        "/startgame — Start the game (Creator/Admin)\n"
+        "/endgame — End current game (Creator/Admin)\n"
         "/join — Join the game lobby\n"
         "/drop [rank] — Drop card(s) by rank (e.g. <code>/drop 9</code>)\n"
         "/declare — Declare at the start of your turn\n\n"

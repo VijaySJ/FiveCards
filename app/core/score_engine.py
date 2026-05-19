@@ -55,13 +55,14 @@ def calculate_round_scores(
 
     if someone_lower:
         logger.info("RULE 2: Declarer %d gets %d penalty", declared_by_id, DECLARATION_PENALTY)
+        min_val = min(hand_values.values())
         for p in players:
             uid = p["user_id"]
             if not p["hand"]:
                 scores[uid] = 0
             elif uid == declared_by_id:
                 scores[uid] = DECLARATION_PENALTY
-            elif hand_values[uid] == declarer_value:
+            elif hand_values[uid] == min_val:
                 scores[uid] = 0
             else:
                 scores[uid] = hand_values[uid]
@@ -122,9 +123,7 @@ def build_leaderboard(game: dict) -> str:
     """
     sorted_players = sorted(game["players"], key=lambda p: p["total_score"])
     lines: list[str] = []
-    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━")
-    lines.append("🏆  FINAL LEADERBOARD  🏆")
-    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append("🏆 <b>FINAL LEADERBOARD</b> 🏆")
     lines.append("")
 
     for idx, player in enumerate(sorted_players):
@@ -141,11 +140,10 @@ def build_leaderboard(game: dict) -> str:
 
         rounds_count = len(player["round_scores"])
 
-        lines.append(f"{badge}  {player['username']}:  {int(player['total_score'])} pts")
-        lines.append(f"     Rounds: {rounds_count}")
+        lines.append(f"{badge} <b>{player['username']}:</b> {int(player['total_score'])} pts")
+        lines.append(f"   <i>Rounds: {rounds_count}</i>")
         lines.append("")
 
-    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━")
     return "\n".join(lines)
 
 
@@ -163,8 +161,8 @@ def build_round_summary(
         Multi-line formatted round summary string.
     """
     lines: list[str] = []
-    lines.append(f"📊  Round {round_number} Results")
-    lines.append("─────────────────────────")
+    lines.append(f"📊 <b>Round {round_number} Results</b>")
+    lines.append("")
 
     sorted_players = sorted(
         game["players"], key=lambda p: round_scores.get(p["user_id"], 0)
@@ -179,7 +177,6 @@ def build_round_summary(
             indicator = " ⚠️ PENALTY"
         elif pts == 0:
             indicator = " ✨"
-        lines.append(f"  {player['username']}: {pts} pts{indicator}  (Total: {total})")
+        lines.append(f"👤 <b>{player['username']}:</b> {pts} pts{indicator} (Total: {total})")
 
-    lines.append("─────────────────────────")
     return "\n".join(lines)

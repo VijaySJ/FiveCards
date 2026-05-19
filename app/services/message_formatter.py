@@ -31,18 +31,15 @@ def _fmt_open_card(card: str) -> str:
 def fmt_game_created(admin_username: str, rounds: int, chat_title: str = "") -> str:
     """Format the 'new game created' announcement for group chat."""
     lines = [
-        "╔═══════════════════════════╗",
-        "║   🃏  5 CARDS — New Game!  🃏   ║",
-        "╚═══════════════════════════╝",
+        "<b>🎮 5 CARDS — New Game!</b>",
         "",
-        f"  👑 Admin: {admin_username}",
-        f"  🔁 Rounds: {rounds}",
+        f"👑 <b>Admin:</b> {admin_username}",
+        f"🔁 <b>Rounds:</b> {rounds}",
         "",
-        "  📢 Type /join to enter the game!",
-        f"  👥 Need at least 2 players (max 10).",
+        "📢 Type /join to enter the game!",
+        "👥 Need at least 2 players (max 10).",
         "",
-        "  ⚠️ Before starting, DM me (@bot) so I can",
-        "     send you your cards privately!",
+        "⚠️ <i>Before starting, DM me (@bot) so I can send you your cards privately!</i>",
     ]
     return "\n".join(lines)
 
@@ -59,19 +56,17 @@ def fmt_game_starting(game: dict, time_left: int = 60) -> str:
     first_player = game["players"][0]
 
     lines = [
-        "╔═══════════════════════════╗",
-        f"║   🎯 Round {game['round_current']} / {game['rounds_total']}   🎯          ║",
-        "╚═══════════════════════════╝",
+        f"<b>🎯 Round {game['round_current']} / {game['rounds_total']} Started!</b>",
         "",
-        f"  🃏 Open Card:  {format_card(open_card)}",
-        f"  🎭 Joker Rank: {joker_rank}  (All {joker_rank}s = 0 pts)",
+        f"📤 <b>Open Card:</b> {format_card(open_card)}",
+        f"🎭 <b>Joker Rank:</b> {joker_rank} (Value: 0)",
         "",
-        "  👥 Player Cards:",
-        f"  {fmt_card_counts(game)}",
+        "👥 <b>Player Cards:</b>",
+        f"{fmt_card_counts(game)}",
         "",
-        f"  ▶️ {first_player['username']}'s turn! (⏳ {time_left}s)",
+        f"▶️ <b>{first_player['username']}'s turn!</b> (⏳ {time_left}s)",
         "",
-        "  📬 Check your DM for your cards!",
+        "📬 <i>Check your DM for your cards!</i>",
     ]
     return "\n".join(lines)
 
@@ -112,20 +107,15 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
 
     safe_active_name = html.escape(active['username'])
     return (
-        f"<b>╔═══════ 🃏 5 CARDS 🃏 ═══════╗</b>\n"
-        f"  <b>Round {round_no} of {total_rounds}</b>\n"
-        f"<b>╚═════════════════════════════╝</b>\n"
+        f"<b>🃏 Round {round_no} of {total_rounds}</b>\n"
         f"\n"
-        f"📤  <b>Open Card:</b>  {open_display}\n"
-        f"🃏  <b>Joker Rank:</b> {joker_rank}  (Value: 0)\n"
-        f"📝  <b>Last Move:</b>  <i>{last_action}</i>\n"
+        f"📤 <b>Open Card:</b> {open_display}\n"
+        f"🃏 <b>Joker Rank:</b> {joker_rank} (Value: 0)\n"
+        f"📝 <b>Last Move:</b> <i>{last_action}</i>\n"
         f"\n"
-        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
-        f"👤 <b>Player:</b> {safe_active_name}\n"
+        f"👤 <b>Turn:</b> {safe_active_name}\n"
         f"⏱ <b>Time:</b> {time_left}s remaining\n"
-        f"\n"
         f"{instruction}\n"
-        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
         f"\n"
         f"👥 <b>Current Hands:</b>\n"
         f"{player_list_str}\n"
@@ -164,16 +154,13 @@ def fmt_hand_dm(player: dict, joker_rank: str) -> str:
     
     safe_name = html.escape(player['username'])
     return (
-        f"<b>╔═══════ 🃏 YOUR HAND 🃏 ═══════╗</b>\n"
-        f"  <b>Player:</b> {safe_name}\n"
-        f"<b>╚═════════════════════════════╝</b>\n"
+        f"<b>🃏 YOUR HAND</b>\n"
+        f"👤 <b>Player:</b> {safe_name}\n"
         f"\n"
         f"{_fmt_hand_visual(hand, joker_rank)}\n"
         f"\n"
-        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
-        f"📊  <b>Total Points: {pts}</b>\n"
-        f"🃏  <b>Joker Rank:  {joker_rank}</b>\n"
-        f"<b>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</b>\n"
+        f"📊 <b>Total Points:</b> {pts}\n"
+        f"🃏 <b>Joker Rank:</b> {joker_rank}\n"
         f"\n"
         f"<i>Tap below to return to the play area</i>"
     )
@@ -183,13 +170,12 @@ def fmt_must_draw_dm(player: dict, joker_rank: str) -> str:
     """Format the reminder sent via DM when a player must draw."""
     pts = hand_value(player["hand"], joker_rank)
     return (
-        f"<b>╔══════ 🃏 ACTION NEEDED 🃏 ══════╗</b>\n"
-        f"  <b>No Match! You must draw a card.</b>\n"
-        f"<b>╚═══════════════════════════════╝</b>\n"
+        f"<b>⚠️ ACTION NEEDED</b>\n"
+        f"<i>No Match! You must draw a card.</i>\n"
         f"\n"
         f"{_fmt_hand_visual(player['hand'], joker_rank)}\n"
         f"\n"
-        f"<b>📊 Total Points: {pts}</b>\n"
+        f"📊 <b>Total Points:</b> {pts}\n"
         f"\n"
         f"👉 <b>Return to group and click:</b>\n"
         f"   [🎴 Draw from Pile] or [📥 Pick Open Card]"
@@ -239,11 +225,9 @@ def fmt_player_hand_empty(username: str) -> str:
 def fmt_declaration(declarer_username: str) -> str:
     """Format the declaration announcement for group chat."""
     lines = [
-        "╔═══════════════════════════╗",
-        f"║  🏳️ {declarer_username} DECLARES! 🏳️",
-        "╚═══════════════════════════╝",
+        f"🏳️ <b>{declarer_username} DECLARES!</b> 🏳️",
         "",
-        "All hands revealed! Calculating scores...",
+        "<i>All hands revealed! Calculating scores...</i>",
     ]
     return "\n".join(lines)
 
@@ -252,18 +236,17 @@ def fmt_all_hands_revealed(game: dict) -> str:
     """Format revealed hands of all players after declaration."""
     joker_rank = game["joker_rank"]
     lines: list[str] = [
-        "┌─────────────────────────┐",
-        "│  📋 Revealed Hands",
-        "└─────────────────────────┘",
+        "📋 <b>Revealed Hands:</b>",
         "",
     ]
 
     for player in game["players"]:
         if not player["hand"]:
-            lines.append(f"  👤 {player['username']}: 🫗 Empty hand → 0 pts")
+            lines.append(f"👤 <b>{player['username']}:</b> 🫗 Empty hand → 0 pts")
         else:
             formatted = format_hand(player["hand"], joker_rank)
-            lines.append(f"  👤 {player['username']}: {formatted}")
+            pts = hand_value(player["hand"], joker_rank)
+            lines.append(f"👤 <b>{player['username']}:</b> {formatted} → Total: {pts} pts")
 
     return "\n".join(lines)
 
@@ -272,9 +255,8 @@ def fmt_round_result(game: dict, round_scores: dict[int, int], declarer_username
     """Format the full round result announcement for group chat."""
     round_num = game["round_current"]
     lines = [
-        "╔═══════════════════════════╗",
-        f"║   📊 Round {round_num} Results",
-        "╚═══════════════════════════╝",
+        f"📊 <b>Round {round_num} Results</b>",
+        "",
     ]
 
     sorted_players = sorted(
@@ -292,15 +274,14 @@ def fmt_round_result(game: dict, round_scores: dict[int, int], declarer_username
             indicator = " ✨"
         declared_tag = " 📣" if uid == game.get("declared_by_id") else ""
         lines.append(
-            f"  {player['username']}{declared_tag}: "
-            f"{pts} pts{indicator}  (Total: {total})"
+            f"👤 <b>{player['username']}</b>{declared_tag}: "
+            f"{pts} pts{indicator} (Total: {total})"
         )
 
-    lines.append("─────────────────────────")
     if game["round_current"] < game["rounds_total"]:
-        lines.append(f"\n🔄 Next round: {game['round_current'] + 1} / {game['rounds_total']}")
+        lines.append(f"\n🔄 <b>Next round:</b> {game['round_current'] + 1} / {game['rounds_total']}")
     else:
-        lines.append("\n🏁 Final round complete! Game over!")
+        lines.append("\n🏁 <b>Final round complete! Game over!</b>")
     return "\n".join(lines)
 
 
@@ -310,15 +291,14 @@ def fmt_card_counts(game: dict) -> str:
     for player in game["players"]:
         count = len(player["hand"])
         parts.append(f"{player['username']}: {count}🎴")
-    return " │ ".join(parts)
+    return " • ".join(parts)
 
 
 def fmt_scores(game: dict) -> str:
     """Format current running scores for /scores command."""
     lines = [
-        "╔═══════════════════════════╗",
-        "║   📊 Current Scores",
-        "╚═══════════════════════════╝",
+        "📊 <b>Current Scores</b>",
+        "",
     ]
     sorted_players = sorted(game["players"], key=lambda p: p["total_score"])
     for player in sorted_players:
@@ -326,10 +306,9 @@ def fmt_scores(game: dict) -> str:
         if not round_details:
             round_details = "—"
         lines.append(
-            f"  {player['username']}: {int(player['total_score'])} pts"
-            f"  ({round_details})"
+            f"👤 <b>{player['username']}:</b> {int(player['total_score'])} pts "
+            f"<i>({round_details})</i>"
         )
-    lines.append("─────────────────────────")
     return "\n".join(lines)
 
 
@@ -341,11 +320,9 @@ def fmt_reshuffle_notice() -> str:
 def fmt_help() -> str:
     """Format the /help command response (plain text, no parse_mode needed)."""
     lines = [
-        "╔═══════════════════════════╗",
-        "║  🃏  5 CARDS — Help & Rules  🃏",
-        "╚═══════════════════════════╝",
+        "<b>🃏 5 CARDS — Help & Rules</b>",
         "",
-        "📋 COMMANDS:",
+        "📋 <b>COMMANDS:</b>",
         "  /newgame [rounds] — Create a new game (default 3 rounds)",
         "  /join — Join the game lobby",
         "  /startgame — Start the game (admin only)",

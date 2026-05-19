@@ -30,10 +30,11 @@ def _fmt_open_card(card: str) -> str:
 
 def fmt_game_created(admin_username: str, rounds: int, chat_title: str = "") -> str:
     """Format the 'new game created' announcement for group chat."""
+    safe_admin = html.escape(admin_username)
     lines = [
-        "<b>🎮 5 CARDS — New Game!</b>",
+        "<b>🃏 5 CARDS — New Game!</b>",
         "",
-        f"👑 <b>Admin:</b> {admin_username}",
+        f"👑 <b>Admin:</b> {safe_admin}",
         f"🔁 <b>Rounds:</b> {rounds}",
         "",
         "📢 Type /join to enter the game!",
@@ -46,7 +47,8 @@ def fmt_game_created(admin_username: str, rounds: int, chat_title: str = "") -> 
 
 def fmt_player_joined(username: str, player_count: int) -> str:
     """Format the 'player joined' message for group chat."""
-    return f"✅ {username} joined! ({player_count} players)"
+    safe_name = html.escape(username)
+    return f"✅ <b>{safe_name}</b> joined! ({player_count} players)"
 
 
 def fmt_game_starting(game: dict, time_left: int = 60) -> str:
@@ -126,8 +128,9 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
 
 def fmt_discard_prompt(username: str) -> str:
     """Format the discard prompt shown in group after pick/draw."""
+    safe_name = html.escape(username)
     lines = [
-        f"📝 {username}, drop a card now!",
+        f"📝 <b>{safe_name}</b>, drop a card now!",
         "",
         "  Type: /drop <card>",
         "  Example: /drop 6H",
@@ -184,25 +187,26 @@ def fmt_must_draw_dm(player: dict, joker_rank: str) -> str:
 
 def fmt_player_picked(username: str) -> str:
     """Format the 'player picked open card' group message."""
-    return f"📤 {username} picked the open card."
+    return f"📤 <b>{html.escape(username)}</b> picked the open card."
 
 
 def fmt_player_drew(username: str) -> str:
     """Format the 'player drew from pile' group message."""
-    return f"🎴 {username} drew from the pile."
+    return f"🎴 <b>{html.escape(username)}</b> drew from the pile."
 
 
 def fmt_player_dropped(username: str, cards_dropped: list[str], cards_remaining: int) -> str:
     """Format the 'player dropped card(s)' group message."""
+    safe_name = html.escape(username)
     if len(cards_dropped) > 1:
         formatted = ", ".join(format_card(c) for c in cards_dropped)
         return (
-            f"🔥 {username} dropped {len(cards_dropped)} cards ({formatted})! "
+            f"🔥 <b>{safe_name}</b> dropped {len(cards_dropped)} cards ({formatted})! "
             f"{cards_remaining} cards remaining."
         )
     else:
         return (
-            f"🔽 {username} dropped {format_card(cards_dropped[0])}. "
+            f"🔽 <b>{safe_name}</b> dropped {format_card(cards_dropped[0])}. "
             f"{cards_remaining} cards remaining."
         )
 
@@ -212,20 +216,21 @@ def fmt_group_drop(username: str, cards_dropped: list[str], cards_remaining: int
     rank = get_card_rank(cards_dropped[0])
     formatted = ", ".join(format_card(c) for c in cards_dropped)
     return (
-        f"💥 {username} group-dropped {len(cards_dropped)} cards of rank {rank}! "
+        f"💥 <b>{html.escape(username)}</b> group-dropped {len(cards_dropped)} cards of rank {rank}! "
         f"({formatted}) — {cards_remaining} cards remaining."
     )
 
 
 def fmt_player_hand_empty(username: str) -> str:
     """Format the announcement when a player's hand becomes empty."""
-    return f"🌟 {username}'s hand is empty — guaranteed 0 points this round!"
+    return f"🌟 <b>{html.escape(username)}</b>'s hand is empty — guaranteed 0 points this round!"
 
 
 def fmt_declaration(declarer_username: str) -> str:
     """Format the declaration announcement for group chat."""
+    safe_name = html.escape(declarer_username)
     lines = [
-        f"🏳️ <b>{declarer_username} DECLARES!</b> 🏳️",
+        f"🏳️ <b>{safe_name} DECLARES!</b> 🏳️",
         "",
         "<i>All hands revealed! Calculating scores...</i>",
     ]
@@ -241,12 +246,13 @@ def fmt_all_hands_revealed(game: dict) -> str:
     ]
 
     for player in game["players"]:
+        safe_name = html.escape(player['username'])
         if not player["hand"]:
-            lines.append(f"👤 <b>{player['username']}:</b> 🫗 Empty hand → 0 pts")
+            lines.append(f"👤 <b>{safe_name}:</b> 🫗 Empty hand → 0 pts")
         else:
             formatted = format_hand(player["hand"], joker_rank)
             pts = hand_value(player["hand"], joker_rank)
-            lines.append(f"👤 <b>{player['username']}:</b> {formatted} → Total: {pts} pts")
+            lines.append(f"👤 <b>{safe_name}:</b> {formatted} → Total: {pts} pts")
 
     return "\n".join(lines)
 
@@ -273,8 +279,9 @@ def fmt_round_result(game: dict, round_scores: dict[int, int], declarer_username
         elif pts == 0:
             indicator = " ✨"
         declared_tag = " 📣" if uid == game.get("declared_by_id") else ""
+        safe_name = html.escape(player['username'])
         lines.append(
-            f"👤 <b>{player['username']}</b>{declared_tag}: "
+            f"👤 <b>{safe_name}</b>{declared_tag}: "
             f"{pts} pts{indicator} (Total: {total})"
         )
 
@@ -290,7 +297,8 @@ def fmt_card_counts(game: dict) -> str:
     parts: list[str] = []
     for player in game["players"]:
         count = len(player["hand"])
-        parts.append(f"{player['username']}: {count}🎴")
+        safe_name = html.escape(player['username'])
+        parts.append(f"{safe_name}: {count}🎴")
     return " • ".join(parts)
 
 
@@ -305,8 +313,9 @@ def fmt_scores(game: dict) -> str:
         round_details = " + ".join(str(int(s)) for s in player["round_scores"])
         if not round_details:
             round_details = "—"
+        safe_name = html.escape(player['username'])
         lines.append(
-            f"👤 <b>{player['username']}:</b> {int(player['total_score'])} pts "
+            f"👤 <b>{safe_name}:</b> {int(player['total_score'])} pts "
             f"<i>({round_details})</i>"
         )
     return "\n".join(lines)
@@ -358,8 +367,9 @@ def fmt_help() -> str:
 
 def fmt_dm_warning(username: str, bot_username: str) -> str:
     """Format the DM prerequisite warning."""
+    safe_name = html.escape(username)
     return (
-        f"⚠️ @{username} — please start a DM with me first! "
+        f"⚠️ @{safe_name} — please start a DM with me first! "
         f"Click @{bot_username} and press START."
     )
 

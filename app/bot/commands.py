@@ -52,7 +52,7 @@ async def cmd_newgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     state_manager.create_game(chat_id, game)
 
     msg = fmt.fmt_game_created(username, rounds)
-    await update.message.reply_text(msg)
+    await update.message.reply_text(msg, parse_mode="HTML")
     logger.info("/newgame by %s in chat %d (%d rounds)", username, chat_id, rounds)
 
 
@@ -68,7 +68,7 @@ async def cmd_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         state_manager.update_game(chat_id, game)
 
         msg = fmt.fmt_player_joined(username, len(game["players"]))
-        await update.message.reply_text(msg)
+        await update.message.reply_text(msg, parse_mode="HTML")
         logger.info("/join by %s in chat %d", username, chat_id)
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -154,7 +154,7 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         game = state_manager.get_game_or_raise(chat_id)
         if not game["deck"]:
-            await update.message.reply_text(fmt.fmt_reshuffle_notice())
+            await update.message.reply_text(fmt.fmt_reshuffle_notice(), parse_mode="HTML")
 
         game_engine.process_draw(game, user.id)
         state_manager.update_game(chat_id, game)

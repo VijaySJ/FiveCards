@@ -22,38 +22,53 @@ async def send_dm(
     username: str = "",
     chat_id: int = 0,
     reply_markup=None,
-) -> bool:
+) -> int:
     """Attempt to send a DM to a user. If blocked/not started, notify group.
 
-    Args:
-        bot: Telegram Bot instance.
-        user_id: Target user's Telegram ID.
-        text: Message text to send.
-        username: Player's display name (for error messages).
-        chat_id: Group chat ID (for sending error messages).
-        reply_markup: Optional InlineKeyboardMarkup to attach.
-
     Returns:
-        True if DM was sent successfully, False otherwise.
+        Message ID if DM was sent successfully, 0 otherwise.
     """
     try:
-        await bot.send_message(
+        msg = await bot.send_message(
             chat_id=user_id,
             text=text,
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-        return True
+        return msg.message_id
     except Forbidden:
         bot_me = await bot.get_me()
         if chat_id:
             warning = fmt.fmt_dm_warning(username, bot_me.username or "the_bot")
             await bot.send_message(chat_id=chat_id, text=warning, parse_mode="HTML")
         logger.warning("Cannot DM user %s (%d) — privacy/block", username, user_id)
-        return False
+        return 0
     except Exception as e:
         logger.error("Failed to DM user %d: %s", user_id, e)
-        return False
+        return 0
+
+
+async def update_hand_dm(context, chat_id: int, game: dict, user_id: int) -> None:
+    """Update the player's existing DM message with their current hand."""
+    player = state_manager.get_player(game, user_id)
+    if not player: return
+    dm_msg_id = player.get("dm_message_id")
+    if not dm_msg_id: return
+    
+    group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
+    text = fmt.fmt_hand_dm(player, game["joker_rank"])
+    markup = keyboards.dm_keyboard(group_link)
+    
+    try:
+        await context.bot.edit_message_text(
+            chat_id=user_id,
+            message_id=dm_msg_id,
+            text=text,
+            parse_mode="HTML",
+            reply_markup=markup
+        )
+    except Exception as e:
+        logger.debug("Failed to update DM for %d: %s", user_id, e)
 
 
 async def is_group_admin(bot: Bot, chat_id: int, user_id: int) -> bool:

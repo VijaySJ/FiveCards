@@ -100,11 +100,13 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         for player in game["players"]:
             uid = player["user_id"]
             hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-            await send_dm(
+            msg_id = await send_dm(
                 context.bot, uid, hand_msg,
                 username=player["username"], chat_id=chat_id,
                 reply_markup=keyboards.dm_keyboard(group_link),
             )
+            if msg_id:
+                player["dm_message_id"] = msg_id
 
         # CHANGE #1: Send the ONE persistent keyboard message and store its ID
         start_msg = fmt.fmt_turn_announcement(game, 60)
@@ -135,7 +137,8 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         game_engine.process_pick(game, user.id)
         state_manager.update_game(chat_id, game)
 
-        from app.bot.helpers import send_new_turn_message
+        from app.bot.helpers import send_new_turn_message, update_hand_dm
+        await update_hand_dm(context, chat_id, game, user.id)
         await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(context, chat_id, game)
         logger.info("/pick by %d in chat %d", user.id, chat_id)
@@ -156,7 +159,8 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         game_engine.process_draw(game, user.id)
         state_manager.update_game(chat_id, game)
 
-        from app.bot.helpers import send_new_turn_message
+        from app.bot.helpers import send_new_turn_message, update_hand_dm
+        await update_hand_dm(context, chat_id, game, user.id)
         await send_new_turn_message(context, chat_id, game)
         await start_turn_timer(context, chat_id, game)
         logger.info("/draw by %d in chat %d", user.id, chat_id)
@@ -241,6 +245,9 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         result = game_engine.process_drop(game, user.id, args)
         state_manager.update_game(chat_id, game)
+
+        from app.bot.helpers import update_hand_dm
+        await update_hand_dm(context, chat_id, game, user.id)
 
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
@@ -417,13 +424,15 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         player = state_manager.get_player(game, user.id)
         
         hand_text = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id, message_id=game["keyboard_message_id"])
+        group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
         
-        await update.message.reply_text(
+        msg = await update.message.reply_text(
             hand_text,
             parse_mode="HTML",
             reply_markup=keyboards.dm_keyboard(group_link)
         )
+        player["dm_message_id"] = msg.message_id
+        state_manager.update_game(chat_id, game)
         return
 
     await update.message.reply_text(

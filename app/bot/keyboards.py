@@ -49,7 +49,7 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot") -> InlineKeyboa
             ),
         ],
         [
-            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}?start=hand"),
+            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
         ],
     ])
 

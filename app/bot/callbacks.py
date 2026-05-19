@@ -85,6 +85,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 picked_card = game_engine.process_pick(game, user.id)
                 state_manager.update_game(chat_id, game)
 
+                from app.bot.helpers import update_hand_dm
+                await update_hand_dm(context, chat_id, game, user.id)
+
                 # Step 1: Send a NEW turn message for individual turn logs
                 await send_new_turn_message(context, chat_id, game)
                 
@@ -99,6 +102,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     )
                 drawn_card = game_engine.process_draw(game, user.id)
                 state_manager.update_game(chat_id, game)
+
+                from app.bot.helpers import update_hand_dm
+                await update_hand_dm(context, chat_id, game, user.id)
 
                 # Step 1: Send a NEW turn message for individual turn logs
                 await send_new_turn_message(context, chat_id, game)
@@ -201,11 +207,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             for player in game["players"]:
                 uid = player["user_id"]
                 hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-                await send_dm(
+                msg_id = await send_dm(
                     context.bot, uid, hand_msg,
                     username=player["username"], chat_id=chat_id,
                     reply_markup=keyboards.dm_keyboard(group_link),
                 )
+                if msg_id:
+                    player["dm_message_id"] = msg_id
 
             # CHANGE #1: send a NEW turn message for individual turn logs
             await send_new_turn_message(context, chat_id, game)

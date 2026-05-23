@@ -7,6 +7,7 @@ from app.services import message_formatter as fmt
 from app.bot import keyboards
 from app.bot.helpers import send_dm, get_group_link, send_new_turn_message
 from app.core.exceptions import GameException
+from app.core.card_utils import format_card
 
 logger = logging.getLogger(__name__)
 
@@ -177,9 +178,10 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Announce timeout to group
         if dropped_cards:
+            formatted_drops = [format_card(c) for c in dropped_cards]
             announcement = (
                 f"⏰ <b>Time's up!</b>\n"
-                f"👤 {username} took too long and randomly dropped: {', '.join(dropped_cards)}"
+                f"👤 {username} took too long and randomly dropped: {', '.join(formatted_drops)}"
             )
             if drawn_card:
                 announcement += f"\n🎴 And automatically drew from the pile."

@@ -78,7 +78,15 @@ def fmt_game_starting(game: dict, time_left: int = 60) -> str:
 def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     """Format the persistent turn announcement shown in group chat."""
     active = game["players"][game["current_turn_idx"]]
-    open_card = game["discard_pile"][-1] if game["discard_pile"] else "—"
+    
+    cards_dropped = game.get("cards_dropped_this_turn", 0)
+    if game.get("turn_phase") == "must_draw" and cards_dropped > 0:
+        if len(game["discard_pile"]) > cards_dropped:
+            open_card = game["discard_pile"][-(cards_dropped + 1)]
+        else:
+            open_card = "—"
+    else:
+        open_card = game["discard_pile"][-1] if game["discard_pile"] else "—"
     
     open_display = _fmt_open_card(open_card)
     joker_rank = game["joker_rank"]

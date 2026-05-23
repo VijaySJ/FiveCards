@@ -267,7 +267,8 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=f"❌ <b>No Match!</b>\n👤 {safe_name}, you must draw a card from the pile or pick the open card to end your turn.",
-                parse_mode="HTML"
+                parse_mode="HTML",
+                reply_markup=keyboards.must_draw_keyboard()
             )
 
         logger.info("/drop by %d in chat %d", user.id, chat_id)

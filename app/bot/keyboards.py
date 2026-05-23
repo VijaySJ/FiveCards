@@ -36,10 +36,6 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot") -> InlineKeyboa
     """
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📥 Pick Open Card", callback_data="action:pick"),
-            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
-        ],
-        [
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
         ],
         [
@@ -143,3 +139,17 @@ def next_round_keyboard(is_last_round: bool) -> InlineKeyboardMarkup:
             ],
         ]
     return InlineKeyboardMarkup(keyboard)
+
+
+def must_draw_keyboard() -> InlineKeyboardMarkup:
+    """Build the keyboard shown under the 'No Match!' message.
+
+    Provides the two actions available when a player must draw:
+      [📥 Pick Open Card]  [🎴 Draw from Pile]
+    """
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📥 Pick Open Card", callback_data="action:pick"),
+            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
+        ]
+    ])

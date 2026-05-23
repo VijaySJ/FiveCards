@@ -22,6 +22,8 @@ def _fmt_open_card(card: str) -> str:
     """Format the open (top of discard pile) card with suit emoji."""
     if not card or card == '—':
         return '—'
+    if is_joker_card(card):
+        return "🃏"
     rank = get_card_rank(card)
     suit = get_card_suit(card)
     emoji = _SUIT_EMOJI.get(suit.upper(), suit)
@@ -393,11 +395,14 @@ def format_hand_for_display(hand: list[str], joker_rank: str = "") -> str:
     lines: list[str] = []
     total = 0
     for card in hand:
-        rank = get_card_rank(card)
-        suit = get_card_suit(card)
-        emoji = _SUIT_EMOJI.get(suit.upper(), suit)
         pts = int(hand_value([card], joker_rank)) if joker_rank else 0
-        lines.append(f"  {rank} {emoji}  → {pts} pts")
+        if is_joker_card(card):
+            lines.append(f"  🃏  → {pts} pts")
+        else:
+            rank = get_card_rank(card)
+            suit = get_card_suit(card)
+            emoji = _SUIT_EMOJI.get(suit.upper(), suit)
+            lines.append(f"  {rank} {emoji}  → {pts} pts")
         total += pts
     lines.append(f"\n📊 Total: {int(total)} pts")
     return "\n".join(lines)

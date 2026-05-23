@@ -124,17 +124,11 @@ def deal_initial_cards(game: dict) -> dict[int, list[str]]:
     for i, player in enumerate(game["players"]):
         player["hand"] = hands[i]
 
-    jokers_drawn = []
     joker_card = remaining.pop(0)
-    while card_utils.is_joker_card(joker_card):
-        jokers_drawn.append(joker_card)
-        joker_card = remaining.pop(0)
-
-    game["joker_rank"] = card_utils.get_card_rank(joker_card)
-
-    if jokers_drawn:
-        remaining.extend(jokers_drawn)
-        remaining = card_utils.shuffle_deck(remaining)
+    if card_utils.is_joker_card(joker_card):
+        game["joker_rank"] = "A"
+    else:
+        game["joker_rank"] = card_utils.get_card_rank(joker_card)
 
     open_card = remaining.pop(0)
     game["discard_pile"] = [open_card]

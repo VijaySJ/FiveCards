@@ -65,10 +65,6 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
     player_id = game["players"][turn_idx]["user_id"]
     job_name = f"timer_{chat_id}"
 
-    # Only schedule the 60s auto-drop/draw timeout job.
-    # The persistent keyboard is already edited by every player action,
-    # so the old 15s/30s/45s countdown-update jobs are not needed and
-    # were causing race conditions / duplicate messages.
     context.job_queue.run_once(
         auto_drop_callback,
         TURN_TIMEOUT_SECONDS,
@@ -80,6 +76,21 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
             "player_id": player_id,
         }
     )
+
+    # Schedule live countdown updates at 15s, 30s, and 45s intervals
+    for elapsed, remaining in [(15, 45), (30, 30), (45, 15)]:
+        context.job_queue.run_once(
+            update_timer_callback,
+            elapsed,
+            chat_id=chat_id,
+            name=job_name,
+            data={
+                "turn_idx": turn_idx,
+                "round_num": round_num,
+                "player_id": player_id,
+                "time_left": remaining,
+            }
+        )
 
 
 async def cancel_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:

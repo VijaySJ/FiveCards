@@ -131,21 +131,34 @@ async def send_new_turn_message(
     game: dict,
     time_left: int = 60,
 ) -> None:
-    """Send a NEW turn announcement message instead of editing the old one.
-    
-    This fulfills the user request for 'individual messages' per turn.
-    """
+    """Update the turn announcement message (edit existing, or send new if missing)."""
     try:
         bot_info = await context.bot.get_me()
+        text = fmt.fmt_turn_announcement(game, time_left)
+        markup = keyboards.persistent_game_keyboard(bot_info.username)
+        msg_id = game.get("keyboard_message_id")
+        
+        if msg_id:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=msg_id,
+                    text=text,
+                    reply_markup=markup,
+                    parse_mode="HTML"
+                )
+                return
+            except Exception:
+                pass
+                
         msg = await context.bot.send_message(
             chat_id=chat_id,
-            text=fmt.fmt_turn_announcement(game, time_left),
-            reply_markup=keyboards.persistent_game_keyboard(bot_info.username),
+            text=text,
+            reply_markup=markup,
             parse_mode="HTML",
         )
-        # Update state with the new message ID so timers can still edit THIS message
         game["keyboard_message_id"] = msg.message_id
         state_manager.update_game(chat_id, game)
     except Exception as e:
-        logger.error("Could not send new turn message: %s", e, exc_info=True)
+        logger.error("Could not update turn message: %s", e, exc_info=True)
         raise e

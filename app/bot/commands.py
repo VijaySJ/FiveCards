@@ -15,7 +15,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin, get_group_link, send_new_turn_message
+from app.bot.helpers import send_dm, is_group_admin, get_group_link, update_turn_message
 from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.config.settings import DEFAULT_ROUNDS, MAX_ROUNDS
 from app.core.exceptions import GameException
@@ -138,9 +138,9 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         game_engine.process_pick(game, user.id)
         state_manager.update_game(chat_id, game)
 
-        from app.bot.helpers import send_new_turn_message, update_hand_dm
+        from app.bot.helpers import update_turn_message, update_hand_dm
         await update_hand_dm(context, chat_id, game, user.id)
-        await send_new_turn_message(context, chat_id, game)
+        await update_turn_message(context, chat_id, game)
         await start_turn_timer(context, chat_id, game)
         logger.info("/pick by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -160,9 +160,9 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         game_engine.process_draw(game, user.id)
         state_manager.update_game(chat_id, game)
 
-        from app.bot.helpers import send_new_turn_message, update_hand_dm
+        from app.bot.helpers import update_turn_message, update_hand_dm
         await update_hand_dm(context, chat_id, game, user.id)
-        await send_new_turn_message(context, chat_id, game)
+        await update_turn_message(context, chat_id, game)
         await start_turn_timer(context, chat_id, game)
         logger.info("/draw by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -253,12 +253,12 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
             await cancel_turn_timer(context, chat_id)
-            await send_new_turn_message(context, chat_id, game)
+            await update_turn_message(context, chat_id, game)
             await start_turn_timer(context, chat_id, game)
         else:
             # Turn continues: player must now pick or draw
             await cancel_turn_timer(context, chat_id)
-            await send_new_turn_message(context, chat_id, game)
+            await update_turn_message(context, chat_id, game)
             await start_turn_timer(context, chat_id, game)
             
             # Also notify in group that they must draw

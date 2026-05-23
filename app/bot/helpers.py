@@ -125,7 +125,7 @@ async def get_group_link(bot: Bot, chat_id: int, message_id: int = 1) -> str:
         clean_id = clean_id[1:]
     return f"https://t.me/c/{clean_id}/{msg_id}"
 
-async def send_new_turn_message(
+async def update_turn_message(
     context,
     chat_id: int,
     game: dict,

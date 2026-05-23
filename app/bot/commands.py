@@ -49,7 +49,7 @@ async def cmd_newgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
 
     username = user.first_name or user.username or f"Player_{user.id}"
-    game = game_engine.create_new_game(chat_id, user.id, username, rounds)
+    game = game_engine.create_new_game(chat_id, user.id, username, rounds, tg_username=user.username)
     state_manager.create_game(chat_id, game)
 
     msg = fmt.fmt_game_created(username, rounds)
@@ -65,7 +65,7 @@ async def cmd_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         game = state_manager.get_game_or_raise(chat_id)
         username = user.first_name or user.username or f"Player_{user.id}"
-        game_engine.add_player(game, user.id, username)
+        game_engine.add_player(game, user.id, username, tg_username=user.username)
         state_manager.update_game(chat_id, game)
 
         msg = fmt.fmt_player_joined(username, len(game["players"]))
@@ -253,12 +253,12 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
             await cancel_turn_timer(context, chat_id)
-            await send_new_turn_message(context, chat_id, game)
+            await send_new_turn_message(context, chat_id, game, edit_only=False)
             await start_turn_timer(context, chat_id, game)
         else:
             # Turn continues: player must now pick or draw
             await cancel_turn_timer(context, chat_id)
-            await send_new_turn_message(context, chat_id, game)
+            await send_new_turn_message(context, chat_id, game, edit_only=True)
             await start_turn_timer(context, chat_id, game)
             
             # Also notify in group that they must draw

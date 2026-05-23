@@ -136,7 +136,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     await query.answer(url=f"https://t.me/{bot_username}?start=hand")
                 return
 
-            # ── action:declare (CHANGE #4) ────────────────────────────────────
             elif data == "action:declare":
                 declarer = state_manager.get_player(game, user.id)
                 declarer_name = declarer["username"] if declarer else "Unknown"
@@ -215,8 +214,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if msg_id:
                     player["dm_message_id"] = msg_id
 
-            # CHANGE #1: send a NEW turn message for individual turn logs
-            await send_new_turn_message(context, chat_id, game)
+            # CHANGE #1: send a NEW turn message or edit existing based on whether turn advanced
+            await send_new_turn_message(context, chat_id, game, edit_only=not result["turn_advanced"])
             await start_turn_timer(
                 context, chat_id, game,
                 message_id=game.get("keyboard_message_id"),

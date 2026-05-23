@@ -130,15 +130,29 @@ async def send_new_turn_message(
     chat_id: int,
     game: dict,
     time_left: int = 60,
+    edit_only: bool = False,
 ) -> None:
-    """Send a new turn announcement message and delete the old one."""
+    """Send a new turn announcement message, or edit existing if edit_only=True."""
     try:
         bot_info = await context.bot.get_me()
         text = fmt.fmt_turn_announcement(game, time_left)
         markup = keyboards.persistent_game_keyboard(bot_info.username)
         msg_id = game.get("keyboard_message_id")
         
-        # Delete old message to prevent chat clutter
+        if edit_only and msg_id:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=msg_id,
+                    text=text,
+                    reply_markup=markup,
+                    parse_mode="HTML"
+                )
+                return
+            except Exception:
+                pass # Fallback to send new
+                
+        # Delete old message to prevent chat clutter if not editing
         if msg_id:
             try:
                 await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)

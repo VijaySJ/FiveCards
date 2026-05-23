@@ -38,14 +38,15 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════
 
 
-def create_new_game(chat_id: int, admin_id: int, admin_username: str, rounds: int) -> dict:
-    """Create a fresh game state dict in 'waiting' status.
+def create_new_game(chat_id: int, admin_id: int, admin_username: str, rounds: int, tg_username: str = None) -> dict:
+    """Create a new game lobby.
 
     Args:
-        chat_id: Telegram group chat ID.
-        admin_id: User ID of the game creator (admin).
-        admin_username: Display name of the admin.
-        rounds: Number of rounds to play (1-10).
+        chat_id: Telegram chat ID where the game is hosted.
+        admin_id: Telegram user ID of the creator.
+        admin_username: Display name of the creator.
+        rounds: Total number of rounds to play.
+        tg_username: Optional Telegram @username.
 
     Returns:
         New game state dict ready for players to /join.
@@ -66,18 +67,19 @@ def create_new_game(chat_id: int, admin_id: int, admin_username: str, rounds: in
         "picked_card": None,
     }
     # Auto-add the admin as first player
-    add_player(game, admin_id, admin_username)
+    add_player(game, admin_id, admin_username, tg_username=tg_username)
     logger.info("New game created in chat %d by %s (%d rounds)", chat_id, admin_username, rounds)
     return game
 
 
-def add_player(game: dict, user_id: int, username: str) -> None:
+def add_player(game: dict, user_id: int, username: str, tg_username: str = None) -> None:
     """Add a player to a waiting game.
 
     Args:
         game: Game state dict (status must be "waiting").
         user_id: Telegram user ID.
         username: Display name.
+        tg_username: Optional Telegram @username.
 
     Raises:
         GameAlreadyRunningError: If the game has already started.
@@ -97,6 +99,7 @@ def add_player(game: dict, user_id: int, username: str) -> None:
     player: dict = {
         "user_id": user_id,
         "username": username,
+        "tg_username": tg_username,
         "hand": [],
         "round_scores": [],
         "total_score": 0,

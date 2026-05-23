@@ -118,8 +118,12 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         instruction = "⌛ Waiting..."
 
     safe_active_name = html.escape(active['username'])
-    # Text mention to ping the user
-    active_mention = f'<a href="tg://user?id={active["user_id"]}">{safe_active_name}</a>'
+    # Text mention to ping the user using their @username if they have one
+    tg_username = active.get("tg_username")
+    if tg_username:
+        active_mention = f'(@{tg_username})'
+    else:
+        active_mention = f'(<a href="tg://user?id={active["user_id"]}">{safe_active_name}</a>)'
     
     return (
         f"<b>🃏 Round {round_no} of {total_rounds}</b>\n"
@@ -128,7 +132,7 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
         f"🃏 <b>Joker Rank:</b> {joker_rank} (Value: 0)\n"
         f"📝 <b>Last Move:</b> <i>{last_action}</i>\n"
         f"\n"
-        f"👤 <b>Turn:</b> {safe_active_name} ({active_mention})\n"
+        f"👤 <b>Turn:</b> {safe_active_name} {active_mention}\n"
         f"⏱ <b>Time:</b> {time_left}s remaining\n"
         f"{instruction}\n"
         f"\n"

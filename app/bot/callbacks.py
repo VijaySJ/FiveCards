@@ -22,7 +22,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin, get_group_link, update_turn_message
+from app.bot.helpers import send_dm, is_group_admin, get_group_link, send_new_turn_message
 from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.core.exceptions import GameException
 
@@ -89,7 +89,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await update_hand_dm(context, chat_id, game, user.id)
 
                 # Step 1: Send a NEW turn message for individual turn logs
-                await update_turn_message(context, chat_id, game)
+                await send_new_turn_message(context, chat_id, game)
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
@@ -107,7 +107,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await update_hand_dm(context, chat_id, game, user.id)
 
                 # Step 1: Send a NEW turn message for individual turn logs
-                await update_turn_message(context, chat_id, game)
+                await send_new_turn_message(context, chat_id, game)
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
@@ -216,7 +216,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     player["dm_message_id"] = msg_id
 
             # CHANGE #1: send a NEW turn message for individual turn logs
-            await update_turn_message(context, chat_id, game)
+            await send_new_turn_message(context, chat_id, game)
             await start_turn_timer(
                 context, chat_id, game,
                 message_id=game.get("keyboard_message_id"),

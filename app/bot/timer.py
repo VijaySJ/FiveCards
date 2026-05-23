@@ -5,7 +5,7 @@ from app.services import state_manager
 from app.core import game_engine
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, get_group_link, update_turn_message
+from app.bot.helpers import send_dm, get_group_link, send_new_turn_message
 from app.core.exceptions import GameException
 from app.core.card_utils import format_card
 
@@ -212,7 +212,7 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         # CHANGE #1: send a NEW turn message for individual turn logs
-        await update_turn_message(context, chat_id, game)
+        await send_new_turn_message(context, chat_id, game)
 
         await start_turn_timer(
             context, chat_id, game,

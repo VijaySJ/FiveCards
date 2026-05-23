@@ -324,8 +324,9 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
     ]
 
     if len(matching_cards) < count_to_drop:
+        word = "card" if len(matching_cards) == 1 else "cards"
         raise InvalidCardError(
-            f"❌ You only have {len(matching_cards)} card(s) of rank {target_rank}\n"
+            f"❌ You only have {len(matching_cards)} {word} of rank {target_rank}\n"
             f"in your hand. You tried to drop {count_to_drop}."
         )
 
@@ -369,7 +370,8 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
         advance_turn(game)
     else:
         safe_name = html.escape(player['username'])
-        game["last_action"] = f"👤 {safe_name} dropped {len(cards_to_remove)} card(s)"
+        word = "card" if len(cards_to_remove) == 1 else "cards"
+        game["last_action"] = f"👤 {safe_name} dropped {len(cards_to_remove)} {word}"
         game["turn_phase"] = "must_draw"
 
     return {

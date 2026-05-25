@@ -139,8 +139,8 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         state_manager.update_game(chat_id, game)
 
         from app.bot.helpers import send_new_turn_message, update_hand_dm
-        await update_hand_dm(context, chat_id, game, user.id)
         await send_new_turn_message(context, chat_id, game)
+        await update_hand_dm(context, chat_id, game, user.id)
         await start_turn_timer(context, chat_id, game)
         logger.info("/pick by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -161,8 +161,8 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         state_manager.update_game(chat_id, game)
 
         from app.bot.helpers import send_new_turn_message, update_hand_dm
-        await update_hand_dm(context, chat_id, game, user.id)
         await send_new_turn_message(context, chat_id, game)
+        await update_hand_dm(context, chat_id, game, user.id)
         await start_turn_timer(context, chat_id, game)
         logger.info("/draw by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -248,7 +248,6 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         state_manager.update_game(chat_id, game)
 
         from app.bot.helpers import update_hand_dm
-        await update_hand_dm(context, chat_id, game, user.id)
 
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
@@ -270,6 +269,8 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 parse_mode="HTML",
                 reply_markup=keyboards.must_draw_keyboard()
             )
+
+        await update_hand_dm(context, chat_id, game, user.id)
 
         logger.info("/drop by %d in chat %d", user.id, chat_id)
     except GameException as e:

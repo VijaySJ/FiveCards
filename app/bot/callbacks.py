@@ -85,11 +85,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 picked_card = game_engine.process_pick(game, user.id)
                 state_manager.update_game(chat_id, game)
 
-                from app.bot.helpers import update_hand_dm
-                await update_hand_dm(context, chat_id, game, user.id)
-
                 # Step 1: Send a NEW turn message for individual turn logs
                 await send_new_turn_message(context, chat_id, game)
+
+                from app.bot.helpers import update_hand_dm
+                await update_hand_dm(context, chat_id, game, user.id)
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
@@ -103,11 +103,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 drawn_card = game_engine.process_draw(game, user.id)
                 state_manager.update_game(chat_id, game)
 
-                from app.bot.helpers import update_hand_dm
-                await update_hand_dm(context, chat_id, game, user.id)
-
                 # Step 1: Send a NEW turn message for individual turn logs
                 await send_new_turn_message(context, chat_id, game)
+
+                from app.bot.helpers import update_hand_dm
+                await update_hand_dm(context, chat_id, game, user.id)
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
@@ -202,7 +202,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             game_engine.start_next_round(game)
             state_manager.update_game(chat_id, game)
 
-            group_link = await get_group_link(context.bot, chat_id)
+            # Send a NEW turn message for the new round
+            await send_new_turn_message(context, chat_id, game)
+
+            group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
             for player in game["players"]:
                 uid = player["user_id"]
                 hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
@@ -213,9 +216,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
                 if msg_id:
                     player["dm_message_id"] = msg_id
-
-            # Send a NEW turn message for the new round
-            await send_new_turn_message(context, chat_id, game)
             await start_turn_timer(
                 context, chat_id, game,
                 message_id=game.get("keyboard_message_id"),

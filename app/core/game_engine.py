@@ -283,7 +283,7 @@ def parse_drop_tokens(tokens: list[str]) -> list[str]:
             t = t[:-1]
         rank = rank_map.get(t)
         if rank is None:
-            raise InvalidCardError(
+            raise InvalidActionError(
                 f"❌ Unknown card: {token}\n"
                 f"Use rank only: /drop 9 9  or  /drop K K K"
             )
@@ -326,11 +326,14 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
         if card_utils.get_card_rank(c) == target_rank
     ]
 
-    if len(matching_cards) < count_to_drop:
+    if len(matching_cards) == 0:
+        raise InvalidActionError(
+            f"❌ You don't have the card {target_rank} in your hand. Check and drop another card."
+        )
+    elif len(matching_cards) < count_to_drop:
         word = "card" if len(matching_cards) == 1 else "cards"
-        raise InvalidCardError(
-            f"❌ You only have {len(matching_cards)} {word} of rank {target_rank}\n"
-            f"in your hand. You tried to drop {count_to_drop}."
+        raise InvalidActionError(
+            f"❌ You only have {len(matching_cards)} {word} of rank {target_rank} in your hand. You tried to drop {count_to_drop}."
         )
 
     cards_to_remove = matching_cards[:count_to_drop]

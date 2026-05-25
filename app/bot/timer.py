@@ -213,17 +213,17 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
                 parse_mode="HTML"
             )
 
-        # Update DM for the timed-out player
+        # Send new turn message first — updates keyboard_message_id
+        await send_new_turn_message(context, chat_id, game)
+
+        # Send DM to timed-out player with updated hand
         hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
+        group_link = await get_group_link(context.bot, chat_id)
         await send_dm(
             context.bot, player_id, hand_msg,
             username=username, chat_id=chat_id,
             reply_markup=keyboards.dm_keyboard(group_link),
         )
-
-        # CHANGE #1: send a NEW turn message for individual turn logs
-        await send_new_turn_message(context, chat_id, game)
 
         await start_turn_timer(
             context, chat_id, game,

@@ -90,40 +90,40 @@ async def is_group_admin(bot: Bot, chat_id: int, user_id: int) -> bool:
         return False
 
 
-async def get_group_link(bot: Bot, chat_id: int, message_id: int = 1) -> str:
+async def get_group_link(bot: Bot, chat_id: int, message_id: int = None) -> str:
     """Get the group's URL dynamically from Telegram.
 
-    Tries in order:
-      1. Public username → t.me/<username>
-      2. Existing invite link from chat info
-      3. Fallback: t.me/c/<chat_id> deep link
+    Returns a link to the GROUP CHAT (not a specific message).
+
+    Linking to a specific message_id caused "Message doesn't exist" errors
+    because send_new_turn_message() deletes the old keyboard message every
+    turn, but only the acting player's DM gets updated. All other players'
+    DMs kept a stale link to the deleted message.
+
+    The message_id parameter is kept for backward-compatibility but ignored.
 
     Args:
         bot: Telegram Bot instance.
         chat_id: Group chat ID.
+        message_id: Ignored — kept so callers don't need to change.
 
     Returns:
-        URL string for the group chat.
+        URL string opening the group chat (no specific message).
     """
-    # Ensure message_id is at least 1 and not None
-    msg_id = message_id if message_id else 1
-
     try:
         chat = await bot.get_chat(chat_id)
-        # Public group with username
         if chat.username:
-            return f"https://t.me/{chat.username}/{msg_id}"
+            return f"https://t.me/{chat.username}"
     except Exception as e:
         logger.debug("Safe check failed for chat %d: %s", chat_id, e)
 
-    # Fallback: Telegram deep link format for private groups
-    # Remove the -100 prefix that Telegram adds to supergroup IDs
+    # Fallback for private groups — strip the -100 supergroup prefix
     clean_id = str(chat_id)
     if clean_id.startswith("-100"):
         clean_id = clean_id[4:]
     elif clean_id.startswith("-"):
         clean_id = clean_id[1:]
-    return f"https://t.me/c/{clean_id}/{msg_id}"
+    return f"https://t.me/c/{clean_id}"
 
 async def send_new_turn_message(
     context,

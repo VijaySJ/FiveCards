@@ -123,7 +123,13 @@ async def get_group_link(bot: Bot, chat_id: int, message_id: int = None) -> str:
         clean_id = clean_id[4:]
     elif clean_id.startswith("-"):
         clean_id = clean_id[1:]
-    return f"https://t.me/c/{clean_id}"
+        
+    # Private group links MUST have a message ID to be valid. 
+    # 999999999 is used to jump to the bottom of the chat without pointing to a deleted message.
+    # We intentionally ignore the passed in message_id because pointing to a deleted message 
+    # (like old turn announcements) causes a "Message doesn't exist" error toast.
+    msg_id = 999999999
+    return f"https://t.me/c/{clean_id}/{msg_id}"
 
 async def send_new_turn_message(
     context,

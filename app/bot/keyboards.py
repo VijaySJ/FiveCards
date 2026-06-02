@@ -50,6 +50,20 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot") -> InlineKeyboa
     ])
 
 
+def declare_confirm_keyboard() -> InlineKeyboardMarkup:
+    """Build the confirmation keyboard shown when a player clicks Declare.
+    
+    Returns:
+        InlineKeyboardMarkup with Yes/Cancel buttons.
+    """
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Yes, Declare!", callback_data="confirm:declare"),
+            InlineKeyboardButton("❌ Cancel", callback_data="cancel:declare"),
+        ]
+    ])
+
+
 def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
     """Legacy keyboard used only for the initial /startgame deal message.
 

@@ -54,7 +54,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     try:
         # ── Action buttons that require an active game + turn checks ──────────
-        if data in ("action:pick", "action:draw", "action:declare", "action:hand"):
+        if data in ("action:pick", "action:draw", "action:declare", "action:hand", "confirm:declare", "cancel:declare"):
             game = state_manager.get_game_or_raise(chat_id)
             current_player_id = game["players"][game["current_turn_idx"]]["user_id"]
             phase = game["turn_phase"]
@@ -73,7 +73,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await query.answer("⛔ You must drop a card first!", show_alert=False)
                 return
 
-            if data == "action:declare" and phase != "must_discard":
+            if data in ("action:declare", "confirm:declare") and phase != "must_discard":
                 await query.answer(
                     "⛔ You can only declare at the start of your turn!",
                     show_alert=False,
@@ -137,6 +137,29 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 return
 
             elif data == "action:declare":
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=chat_id,
+                        message_id=game.get("keyboard_message_id"),
+                        reply_markup=keyboards.declare_confirm_keyboard()
+                    )
+                except Exception as e:
+                    logger.warning("Failed to show declare confirm keyboard: %s", e)
+                return
+
+            elif data == "cancel:declare":
+                bot_info = await context.bot.get_me()
+                try:
+                    await context.bot.edit_message_reply_markup(
+                        chat_id=chat_id,
+                        message_id=game.get("keyboard_message_id"),
+                        reply_markup=keyboards.persistent_game_keyboard(bot_info.username)
+                    )
+                except Exception as e:
+                    logger.warning("Failed to restore persistent keyboard: %s", e)
+                return
+
+            elif data == "confirm:declare":
                 declarer = state_manager.get_player(game, user.id)
                 declarer_name = declarer["username"] if declarer else "Unknown"
 

@@ -108,6 +108,66 @@ def add_player(game: dict, user_id: int, username: str, tg_username: str = None)
     logger.info("Player %s (%d) joined game in chat %d", username, user_id, game["chat_id"])
 
 
+def remove_player(game: dict, target_user_id: int) -> bool:
+    """Remove a player from the game, returning True if the game should end.
+
+    Args:
+        game: Game state dict. Mutated in place.
+        target_user_id: Telegram user ID of the player to remove.
+
+    Returns:
+        True if the game should end because < 2 players remain, False otherwise.
+
+    Raises:
+        PlayerNotFoundError: If the user is not in the game.
+    """
+    player_idx = -1
+    for i, p in enumerate(game["players"]):
+        if p["user_id"] == target_user_id:
+            player_idx = i
+            break
+
+    if player_idx == -1:
+        from app.core.exceptions import PlayerNotFoundError
+        raise PlayerNotFoundError()
+
+    removed_player = game["players"].pop(player_idx)
+
+    if game["status"] == "waiting":
+        logger.info("Removed player %s from waiting game in chat %d", removed_player["username"], game["chat_id"])
+        return False
+
+    # Running game logic
+    if removed_player["hand"]:
+        # Return cards to the bottom of the deck
+        game["deck"].extend(removed_player["hand"])
+
+    if len(game["players"]) < 2:
+        return True
+
+    current_idx = game["current_turn_idx"]
+
+    if player_idx < current_idx:
+        game["current_turn_idx"] = current_idx - 1
+    elif player_idx == current_idx:
+        # The turn automatically falls to the player now occupying current_idx.
+        # Wrap around if it was the last player in the list.
+        if game["current_turn_idx"] >= len(game["players"]):
+            game["current_turn_idx"] = 0
+
+        game["turn_phase"] = "must_discard"
+        game["picked_card"] = None
+        game["cards_dropped_this_turn"] = 0
+        game["last_action"] = f"🚪 {removed_player['username']} was kicked. Turn passed."
+
+        next_player = game["players"][game["current_turn_idx"]]
+        if len(next_player["hand"]) == 0:
+            game["pending_auto_declare"] = next_player["user_id"]
+
+    logger.info("Removed player %s from running game in chat %d", removed_player["username"], game["chat_id"])
+    return False
+
+
 def deal_initial_cards(game: dict) -> dict[int, list[str]]:
     """Deal cards to all players, set joker rank and open card.
 

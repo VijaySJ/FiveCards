@@ -128,6 +128,66 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(e.message)
 
 
+async def cmd_kick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /kick — Remove a player from the game (admin only)."""
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+
+    try:
+        game = state_manager.get_game_or_raise(chat_id)
+        is_admin = await is_group_admin(context.bot, chat_id, user.id)
+        if game["admin_id"] != user.id and not is_admin:
+            await update.message.reply_text("🚫 Only the game creator or group admins can kick players.")
+            return
+
+        target_user_id = None
+        target_name = ""
+
+        # Check if replying to a message
+        if update.message.reply_to_message:
+            target_user_id = update.message.reply_to_message.from_user.id
+            target_name = update.message.reply_to_message.from_user.first_name
+        elif context.args:
+            # Try to match by username or name
+            query = " ".join(context.args).lower().replace("@", "")
+            for p in game["players"]:
+                if (p.get("tg_username") and p["tg_username"].lower() == query) or \
+                   (p["username"].lower() == query):
+                    target_user_id = p["user_id"]
+                    target_name = p["username"]
+                    break
+
+        if not target_user_id:
+            await update.message.reply_text("❌ Specify a player to kick by replying to their message or using /kick @username or /kick Name.")
+            return
+
+        if target_user_id == user.id:
+            await update.message.reply_text("❌ You cannot kick yourself.")
+            return
+
+        game_ended = game_engine.remove_player(game, target_user_id)
+        
+        await update.message.reply_text(f"🚪 <b>{html.escape(target_name)}</b> has been kicked from the game.", parse_mode="HTML")
+
+        if game_ended:
+            leaderboard = game_engine.end_game(game)
+            state_manager.delete_game(chat_id)
+            await cancel_turn_timer(context, chat_id)
+            await update.message.reply_text("🛑 Game ended because less than 2 players remain.\n\n" + leaderboard, parse_mode="HTML")
+            return
+            
+        state_manager.update_game(chat_id, game)
+
+        if game["status"] == "running":
+            await cancel_turn_timer(context, chat_id)
+            await send_new_turn_message(context, chat_id, game, edit_only=False)
+            await start_turn_timer(context, chat_id, game)
+
+        logger.info("/kick on %s by %s in chat %d", target_name, user.username, chat_id)
+    except GameException as e:
+        await update.message.reply_text(e.message)
+
+
 async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /pick — Pick the top card from the discard pile."""
     chat_id = update.effective_chat.id
@@ -324,6 +384,8 @@ async def cmd_hand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=keyboards.dm_keyboard(group_link),
         )
         if sent:
+            player["dm_message_id"] = sent
+            state_manager.update_game(chat_id, game)
             await update.message.reply_text("📬 Hand sent to your DM!")
     except GameException as e:
         await update.message.reply_text(e.message)
@@ -401,6 +463,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/newgame — Create a new game lobby\n"
         "/startgame — Start the game (Creator/Admin)\n"
         "/endgame — End current game (Creator/Admin)\n"
+        "/kick [user] — Kick a player (Creator/Admin)\n"
         "/join — Join the game lobby\n"
         "/drop [rank] — Drop card(s) by rank (e.g. <code>/drop 9</code>)\n"
         "/declare — Declare at the start of your turn\n\n"

@@ -30,6 +30,7 @@ from app.bot.commands import (
     cmd_debugstate,
     cmd_endgame,
     cmd_help,
+    cmd_kick,
 )
 from app.bot.callbacks import handle_callback
 
@@ -63,6 +64,7 @@ def main() -> None:
     app.add_handler(CommandHandler("newgame", cmd_newgame))
     app.add_handler(CommandHandler("startgame", cmd_startgame))
     app.add_handler(CommandHandler("endgame", cmd_endgame))
+    app.add_handler(CommandHandler("kick", cmd_kick))
 
     # 3. Player commands
     app.add_handler(CommandHandler("join", cmd_join))

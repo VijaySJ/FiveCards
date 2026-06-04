@@ -429,11 +429,12 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
 
     if should_advance:
         safe_name = html.escape(player['username'])
-        if is_direct_drop:
-            game["last_action"] = f"🎯 {safe_name} made a DIRECT DROP!"
-        elif not player["hand"]:
+        if not player["hand"]:
             game["last_action"] = f"✨ {safe_name} finished their turn (0 cards left)"
-        advance_turn(game)
+            game["pending_auto_declare"] = player["user_id"]
+        elif is_direct_drop:
+            game["last_action"] = f"🎯 {safe_name} made a DIRECT DROP!"
+            advance_turn(game)
     else:
         safe_name = html.escape(player['username'])
         word = "card" if len(cards_to_remove) == 1 else "cards"
@@ -478,11 +479,12 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
                 
         safe_name = html.escape(player['username'])
         if is_direct_drop or not player["hand"]:
-            if is_direct_drop:
-                game["last_action"] = f"⏰ {safe_name} timed out (Auto Direct Drop)"
-            else:
+            if not player["hand"]:
                 game["last_action"] = f"⏰ {safe_name} timed out (Finished)"
-            advance_turn(game)
+                game["pending_auto_declare"] = player["user_id"]
+            elif is_direct_drop:
+                game["last_action"] = f"⏰ {safe_name} timed out (Auto Direct Drop)"
+                advance_turn(game)
             return None, dropped_cards, not player["hand"]
         else:
             # Auto-draw immediately instead of waiting for another timeout

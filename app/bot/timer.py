@@ -43,10 +43,12 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_declaration(current_player["username"]),
+                parse_mode="HTML"
             )
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=fmt.fmt_all_hands_revealed(game),
+                parse_mode="HTML"
             )
             is_last = game_engine.is_game_over(game)
             result_msg = fmt.fmt_round_result(game, round_scores, current_player["username"])
@@ -54,6 +56,7 @@ async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, gam
                 chat_id=chat_id,
                 text=result_msg,
                 reply_markup=keyboards.next_round_keyboard(is_last),
+                parse_mode="HTML"
             )
         except Exception as e:
             logger.error("Error in pending_auto_declare for %s: %s", current_player["username"], e)

@@ -393,7 +393,7 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
     elif len(matching_cards) < count_to_drop:
         word = "card" if len(matching_cards) == 1 else "cards"
         raise InvalidActionError(
-            f"❌ You only have {len(matching_cards)} {word} of rank {target_rank} in your hand. You tried to drop {count_to_drop}."
+            f"❌ You only have {len(matching_cards)} {word} of rank {target_rank} in your hand."
         )
 
     cards_to_remove = matching_cards[:count_to_drop]

@@ -7,6 +7,7 @@ Each function handles one /command. All are async
 
 import html
 import logging
+import asyncio
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -200,7 +201,7 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         from app.bot.helpers import send_new_turn_message, update_hand_dm
         await send_new_turn_message(context, chat_id, game)
-        await update_hand_dm(context, chat_id, game, user.id)
+        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
         await start_turn_timer(context, chat_id, game)
         logger.info("/pick by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -222,7 +223,7 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         from app.bot.helpers import send_new_turn_message, update_hand_dm
         await send_new_turn_message(context, chat_id, game)
-        await update_hand_dm(context, chat_id, game, user.id)
+        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
         await start_turn_timer(context, chat_id, game)
         logger.info("/draw by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -330,7 +331,7 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 reply_markup=keyboards.must_draw_keyboard()
             )
 
-        await update_hand_dm(context, chat_id, game, user.id)
+        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
 
         logger.info("/drop by %d in chat %d", user.id, chat_id)
     except GameException as e:

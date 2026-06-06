@@ -423,17 +423,15 @@ def process_drop(game: dict, player_id: int, tokens: list[str]) -> dict:
 
     # NEW RULES:
     # 1. If Match (Direct Drop) -> Turn ends.
-    # 2. If Hand Empty -> Turn ends.
-    # 3. If NO Match -> Must Draw.
-    should_advance = is_direct_drop or not player["hand"]
+    # 2. If NO Match -> Must Draw (even if hand momentarily empty).
+    should_advance = is_direct_drop
 
     if should_advance:
         safe_name = html.escape(player['username'])
-        if not player["hand"]:
-            game["last_action"] = f"✨ {safe_name} finished their turn (0 cards left)"
-            game["pending_auto_declare"] = player["user_id"]
-        elif is_direct_drop:
+        if is_direct_drop:
             game["last_action"] = f"🎯 {safe_name} made a DIRECT DROP!"
+            if not player["hand"]:
+                game["last_action"] += " ✨ (0 cards left)"
             advance_turn(game)
     else:
         safe_name = html.escape(player['username'])
@@ -455,7 +453,6 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
     player = validate_active_player(game, player_id)
 
     if len(player["hand"]) == 0:
-        game["pending_auto_declare"] = player_id
         advance_turn(game)
         return None, [], True
 
@@ -478,13 +475,11 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
                 is_direct_drop = True
                 
         safe_name = html.escape(player['username'])
-        if is_direct_drop or not player["hand"]:
+        if is_direct_drop:
+            game["last_action"] = f"⏰ {safe_name} timed out (Auto Direct Drop)"
             if not player["hand"]:
-                game["last_action"] = f"⏰ {safe_name} timed out (Finished)"
-                game["pending_auto_declare"] = player["user_id"]
-            elif is_direct_drop:
-                game["last_action"] = f"⏰ {safe_name} timed out (Auto Direct Drop)"
-                advance_turn(game)
+                game["last_action"] += " ✨ (0 cards left)"
+            advance_turn(game)
             return None, dropped_cards, not player["hand"]
         else:
             # Auto-draw immediately instead of waiting for another timeout
@@ -548,24 +543,22 @@ def process_declare(game: dict, player_id: int) -> dict[int, int]:
 def advance_turn(game: dict) -> None:
     """Advance the turn to the next player (wraps around).
 
-    If the next player has 0 cards in hand, sets game["pending_auto_declare"]
-    so start_turn_timer() can immediately trigger a declare for them.
+    Skips any players who have 0 cards (finished).
 
     Args:
         game: Game state dict. Mutated in place.
     """
     num_players = len(game["players"])
-    game["current_turn_idx"] = (game["current_turn_idx"] + 1) % num_players
+    for _ in range(num_players):
+        game["current_turn_idx"] = (game["current_turn_idx"] + 1) % num_players
+        if len(game["players"][game["current_turn_idx"]]["hand"]) > 0:
+            break
+            
     game["turn_phase"] = "must_discard"
     game["picked_card"] = None
     game["cards_dropped_this_turn"] = 0
     next_player = game["players"][game["current_turn_idx"]]
     logger.info("Turn advanced to %s (%d)", next_player["username"], next_player["user_id"])
-
-    # FIX #7: Auto-declare if next player already has 0 cards
-    if len(next_player["hand"]) == 0:
-        game["pending_auto_declare"] = next_player["user_id"]
-        logger.info("Player %s has 0 cards — flagging pending_auto_declare", next_player["username"])
 
 
 

@@ -14,6 +14,7 @@ PHASE GUARDS (CHANGE #2):
 """
 
 import logging
+import asyncio
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
@@ -89,7 +90,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await send_new_turn_message(context, chat_id, game)
 
                 from app.bot.helpers import update_hand_dm
-                await update_hand_dm(context, chat_id, game, user.id)
+                asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
@@ -107,7 +108,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await send_new_turn_message(context, chat_id, game)
 
                 from app.bot.helpers import update_hand_dm
-                await update_hand_dm(context, chat_id, game, user.id)
+                asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)

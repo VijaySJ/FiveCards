@@ -159,15 +159,17 @@ def next_round_keyboard(is_last_round: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def must_draw_keyboard() -> InlineKeyboardMarkup:
+def must_draw_keyboard(game: dict = None) -> InlineKeyboardMarkup:
     """Build the keyboard shown under the 'No Match!' message.
 
-    Provides the two actions available when a player must draw:
-      [📥 Pick Open Card]  [🎴 Draw from Pile]
+    Provides the two actions available when a player must draw.
     """
+    is_initial = game.get("is_initial_open_card", True) if game else True
+    pick_label = "📥 Pick Open Card" if is_initial else "📥 Pick Dropped Card"
+    
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📥 Pick Open Card", callback_data="action:pick"),
+            InlineKeyboardButton(pick_label, callback_data="action:pick"),
             InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
         ]
     ])

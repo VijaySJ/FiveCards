@@ -84,6 +84,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ── action:pick ───────────────────────────────────────────────────
             if data == "action:pick":
                 picked_card = game_engine.process_pick(game, user.id)
+                
+                warning_msg_id = game.pop("warning_message_id", None)
+                if warning_msg_id:
+                    try:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=warning_msg_id)
+                    except Exception:
+                        pass
+                        
                 state_manager.update_game(chat_id, game)
 
                 # Step 1: Send a NEW turn message for individual turn logs
@@ -102,6 +110,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         chat_id=chat_id, text=fmt.fmt_reshuffle_notice(),
                     )
                 drawn_card = game_engine.process_draw(game, user.id)
+                
+                warning_msg_id = game.pop("warning_message_id", None)
+                if warning_msg_id:
+                    try:
+                        await context.bot.delete_message(chat_id=chat_id, message_id=warning_msg_id)
+                    except Exception:
+                        pass
+                        
                 state_manager.update_game(chat_id, game)
 
                 # Step 1: Send a NEW turn message for individual turn logs

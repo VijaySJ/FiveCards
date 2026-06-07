@@ -197,6 +197,14 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         game = state_manager.get_game_or_raise(chat_id)
         game_engine.process_pick(game, user.id)
+        
+        warning_msg_id = game.pop("warning_message_id", None)
+        if warning_msg_id:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=warning_msg_id)
+            except Exception:
+                pass
+                
         state_manager.update_game(chat_id, game)
 
         from app.bot.helpers import send_new_turn_message, update_hand_dm
@@ -219,6 +227,14 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text(fmt.fmt_reshuffle_notice(), parse_mode="HTML")
 
         game_engine.process_draw(game, user.id)
+        
+        warning_msg_id = game.pop("warning_message_id", None)
+        if warning_msg_id:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=warning_msg_id)
+            except Exception:
+                pass
+                
         state_manager.update_game(chat_id, game)
 
         from app.bot.helpers import send_new_turn_message, update_hand_dm
@@ -319,13 +335,19 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Turn continues: player must now pick or draw
             await cancel_turn_timer(context, chat_id)
             
-            # Send an individual warning message so the user gets notified
+            # Send an individual warning message with the buttons attached
             safe_name = html.escape(user.first_name or user.username or "Player")
             warning_msg = f"⚠️ <b>NO MATCH!</b> {safe_name}, you must now <b>Pick</b> or <b>Draw</b>."
-            await context.bot.send_message(chat_id=chat_id, text=warning_msg, parse_mode="HTML")
+            warning_msg_obj = await context.bot.send_message(
+                chat_id=chat_id, 
+                text=warning_msg, 
+                reply_markup=keyboards.must_draw_keyboard(game),
+                parse_mode="HTML"
+            )
+            game["warning_message_id"] = warning_msg_obj.message_id
             
-            # Send new turn message (edit_only=False) to bring the buttons to the bottom
-            await send_new_turn_message(context, chat_id, game, edit_only=False)
+            # Update turn message in place so we don't spam the chat with a new one
+            await send_new_turn_message(context, chat_id, game, edit_only=True)
             await start_turn_timer(context, chat_id, game)
 
         asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))

@@ -199,7 +199,11 @@ def deal_initial_cards(game: dict) -> dict[int, list[str]]:
 
     game["status"] = "running"
     game["round_current"] = game.get("round_current", 0) + 1
-    game["current_turn_idx"] = 0
+    
+    # Calculate starting player based on round number (Round 1 -> Player 1, Round 2 -> Player 2, etc.)
+    starting_idx = (game["round_current"] - 1) % len(game["players"])
+    game["current_turn_idx"] = starting_idx
+    
     game["turn_phase"] = "must_discard"
     game["picked_card"] = None
     game["declared_by_id"] = None

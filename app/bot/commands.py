@@ -318,7 +318,14 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         else:
             # Turn continues: player must now pick or draw
             await cancel_turn_timer(context, chat_id)
-            await send_new_turn_message(context, chat_id, game, edit_only=True)
+            
+            # Send an individual warning message so the user gets notified
+            safe_name = html.escape(user.first_name or user.username or "Player")
+            warning_msg = f"⚠️ <b>NO MATCH!</b> {safe_name}, you must now <b>Pick</b> or <b>Draw</b>."
+            await context.bot.send_message(chat_id=chat_id, text=warning_msg, parse_mode="HTML")
+            
+            # Send new turn message (edit_only=False) to bring the buttons to the bottom
+            await send_new_turn_message(context, chat_id, game, edit_only=False)
             await start_turn_timer(context, chat_id, game)
 
         asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))

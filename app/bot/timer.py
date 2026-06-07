@@ -119,7 +119,7 @@ async def update_timer_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
                     chat_id=chat_id,
                     message_id=message_id,
                     text=fmt.fmt_turn_announcement(game, time_left),
-                    reply_markup=keyboards.persistent_game_keyboard(bot_info.username),
+                    reply_markup=keyboards.persistent_game_keyboard(bot_info.username, game=game),
                     parse_mode="HTML",
                 )
             except Exception as e:

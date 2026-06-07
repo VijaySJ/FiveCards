@@ -154,7 +154,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     await context.bot.edit_message_reply_markup(
                         chat_id=chat_id,
                         message_id=game.get("keyboard_message_id"),
-                        reply_markup=keyboards.persistent_game_keyboard(bot_info.username)
+                        reply_markup=keyboards.persistent_game_keyboard(bot_info.username, game=game)
                     )
                 except Exception as e:
                     logger.warning("Failed to restore persistent keyboard: %s", e)

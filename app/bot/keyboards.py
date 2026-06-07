@@ -79,7 +79,7 @@ def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
     """
     # Always return the full persistent layout; callers that previously
     # relied on phase-gating now use persistent_game_keyboard() directly.
-    return persistent_game_keyboard()
+    return persistent_game_keyboard(game=game)
 
 
 def dm_keyboard(group_link: str) -> InlineKeyboardMarkup:

@@ -28,15 +28,8 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = No
     """
     buttons = []
     phase = game.get("turn_phase", "must_discard") if game else "must_discard"
-    is_initial = game.get("is_initial_open_card", True) if game else True
-    pick_label = "📥 Pick Open Card" if is_initial else "📥 Pick Dropped Card"
 
-    if phase == "must_draw":
-        buttons.append([
-            InlineKeyboardButton(pick_label, callback_data="action:pick"),
-            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
-        ])
-    else:
+    if phase != "must_draw":
         buttons.append([
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
         ])
@@ -159,7 +152,7 @@ def next_round_keyboard(is_last_round: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def must_draw_keyboard(game: dict = None) -> InlineKeyboardMarkup:
+def must_draw_keyboard(game: dict = None, bot_username: str = "fivecardsbot") -> InlineKeyboardMarkup:
     """Build the keyboard shown under the 'No Match!' message.
 
     Provides the two actions available when a player must draw.
@@ -171,5 +164,8 @@ def must_draw_keyboard(game: dict = None) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(pick_label, callback_data="action:pick"),
             InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
+        ],
+        [
+            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
         ]
     ])

@@ -337,11 +337,14 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             
             # Send an individual warning message with the buttons attached
             safe_name = html.escape(user.first_name or user.username or "Player")
-            warning_msg = f"⚠️ <b>NO MATCH!</b> {safe_name}, you must now <b>Pick</b> or <b>Draw</b>."
+            is_initial = game.get("is_initial_open_card", True)
+            pick_label = "Pick Open Card" if is_initial else "Pick Dropped Card"
+            warning_msg = f"⚠️ <b>NO MATCH!</b> {safe_name}, you must now <b>{pick_label}</b> or <b>Draw from Pile</b>."
+            bot_info = await context.bot.get_me()
             warning_msg_obj = await context.bot.send_message(
                 chat_id=chat_id, 
                 text=warning_msg, 
-                reply_markup=keyboards.must_draw_keyboard(game),
+                reply_markup=keyboards.must_draw_keyboard(game, bot_info.username),
                 parse_mode="HTML"
             )
             game["warning_message_id"] = warning_msg_obj.message_id

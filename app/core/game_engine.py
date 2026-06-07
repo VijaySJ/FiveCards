@@ -204,6 +204,7 @@ def deal_initial_cards(game: dict) -> dict[int, list[str]]:
     game["picked_card"] = None
     game["declared_by_id"] = None
     game["cards_dropped_this_turn"] = 0
+    game["is_initial_open_card"] = True
 
     logger.info(
         "Dealt cards for round %d in chat %d: joker_rank=%s, open_card=%s, deck=%d cards",
@@ -557,6 +558,7 @@ def advance_turn(game: dict) -> None:
     game["turn_phase"] = "must_discard"
     game["picked_card"] = None
     game["cards_dropped_this_turn"] = 0
+    game["is_initial_open_card"] = False
     next_player = game["players"][game["current_turn_idx"]]
     logger.info("Turn advanced to %s (%d)", next_player["username"], next_player["user_id"])
 

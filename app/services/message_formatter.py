@@ -110,10 +110,13 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     
     # Phase-specific instructions (Premium wording)
     phase = game.get("turn_phase", "must_discard")
+    is_initial = game.get("is_initial_open_card", True)
+    pick_label = "open card" if is_initial else "dropped card"
+    
     if phase == "must_discard":
         instruction = "📥 <b>ACTION REQUIRED:</b> Drop a card from your hand!"
     elif phase == "must_draw":
-        instruction = "🎴 <b>NO MATCH:</b> Draw from pile or Pick open card!"
+        instruction = f"🎴 <b>NO MATCH:</b> Draw from pile or Pick {pick_label}!"
     else:
         instruction = "⌛ Waiting..."
 
@@ -125,10 +128,11 @@ def fmt_turn_announcement(game: dict, time_left: int = 60) -> str:
     else:
         active_mention = f'(<a href="tg://user?id={active["user_id"]}">{safe_active_name}</a>)'
     
+    card_label = "Open Card" if is_initial else "Dropped Card"
     return (
         f"<b>🃏 Round {round_no} of {total_rounds}</b>\n"
         f"\n"
-        f"📤 <b>Open Card:</b> {open_display}\n"
+        f"📤 <b>{card_label}:</b> {open_display}\n"
         f"🃏 <b>Joker Rank:</b> {joker_rank} (Value: 0)\n"
         f"📝 <b>Last Move:</b> <i>{last_action}</i>\n"
         f"\n"

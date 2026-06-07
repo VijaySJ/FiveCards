@@ -55,7 +55,10 @@ async def update_hand_dm(context, chat_id: int, game: dict, user_id: int) -> Non
     dm_msg_id = player.get("dm_message_id")
     if not dm_msg_id: return
     
-    group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
+    if "group_link" not in game:
+        game["group_link"] = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
+        # state_manager.update_game(chat_id, game)  # Let the caller update state if they want, but mutating dict is fine
+    group_link = game["group_link"]
     text = fmt.fmt_hand_dm(player, game["joker_rank"])
     markup = keyboards.dm_keyboard(group_link)
     
@@ -142,7 +145,7 @@ async def send_new_turn_message(
     try:
         bot_info = await context.bot.get_me()
         text = fmt.fmt_turn_announcement(game, time_left)
-        markup = keyboards.persistent_game_keyboard(bot_info.username)
+        markup = keyboards.persistent_game_keyboard(bot_info.username, game=game)
         msg_id = game.get("keyboard_message_id")
         
         if edit_only and msg_id:

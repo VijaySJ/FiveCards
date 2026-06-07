@@ -15,39 +15,43 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from app.config.settings import BOT_USERNAME
 
 
-def persistent_game_keyboard(bot_username: str = "fivecardsbot") -> InlineKeyboardMarkup:
+def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = None) -> InlineKeyboardMarkup:
     """Build the single persistent game keyboard shown throughout the game.
 
     This keyboard is sent ONCE at game start and the message is EDITED
     on every turn — it is NEVER re-sent as a new message.
 
-    All 5 buttons are always visible regardless of turn phase.
-    Phase guards are enforced in callbacks.py via toast alerts so
-    players get instant feedback without a new chat message.
-
-    Layout:
-        [📥 Pick Open Card]  [🎴 Draw from Pile]
-        [         🏳️ Declare         ]
-        [         ⏬ Drop the Card     ]
-        [         🃏 Card In Hand →    ]
+    Buttons change dynamically based on the current turn phase.
 
     Returns:
-        InlineKeyboardMarkup with all action buttons.
+        InlineKeyboardMarkup with action buttons.
     """
-    return InlineKeyboardMarkup([
-        [
+    buttons = []
+    phase = game.get("turn_phase", "must_discard") if game else "must_discard"
+    is_initial = game.get("is_initial_open_card", True) if game else True
+    pick_label = "📥 Pick Open Card" if is_initial else "📥 Pick Dropped Card"
+
+    if phase == "must_draw":
+        buttons.append([
+            InlineKeyboardButton(pick_label, callback_data="action:pick"),
+            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
+        ])
+    else:
+        buttons.append([
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
-        ],
-        [
+        ])
+        buttons.append([
             InlineKeyboardButton(
                 "⏬ Drop the Card",
                 switch_inline_query_current_chat="/drop"
             ),
-        ],
-        [
-            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
-        ],
+        ])
+
+    buttons.append([
+        InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
     ])
+
+    return InlineKeyboardMarkup(buttons)
 
 
 def declare_confirm_keyboard() -> InlineKeyboardMarkup:

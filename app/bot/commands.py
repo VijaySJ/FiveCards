@@ -115,7 +115,7 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         bot_info = await context.bot.get_me()
         msg = await update.message.reply_text(
             start_msg,
-            reply_markup=keyboards.persistent_game_keyboard(bot_info.username),
+            reply_markup=keyboards.persistent_game_keyboard(bot_info.username, game=game),
             parse_mode="HTML"
         )
 
@@ -320,16 +320,6 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await cancel_turn_timer(context, chat_id)
             await send_new_turn_message(context, chat_id, game, edit_only=True)
             await start_turn_timer(context, chat_id, game)
-            
-            # Also notify in group that they must draw
-            player = state_manager.get_player(game, user.id)
-            safe_name = html.escape(player['username'])
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=f"❌ <b>No Match!</b>\n👤 {safe_name}, you must draw a card from the pile or pick the open card to end your turn.",
-                parse_mode="HTML",
-                reply_markup=keyboards.must_draw_keyboard()
-            )
 
         asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
 

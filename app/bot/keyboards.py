@@ -40,9 +40,6 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = No
             ),
         ])
 
-    buttons.append([
-        InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
-    ])
 
     return InlineKeyboardMarkup(buttons)
 

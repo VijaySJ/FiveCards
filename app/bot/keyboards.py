@@ -39,7 +39,9 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = No
                 switch_inline_query_current_chat="/drop"
             ),
         ])
-
+        buttons.append([
+            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
+        ])
 
     return InlineKeyboardMarkup(buttons)
 
@@ -159,10 +161,10 @@ def must_draw_keyboard(game: dict = None, bot_username: str = "fivecardsbot") ->
     
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(pick_label, callback_data="action:pick"),
-            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
+            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
         ],
         [
-            InlineKeyboardButton("🃏 Card In Hand →", url=f"https://t.me/{bot_username}"),
+            InlineKeyboardButton(pick_label, callback_data="action:pick"),
+            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
         ]
     ])

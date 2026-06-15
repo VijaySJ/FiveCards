@@ -54,7 +54,11 @@ async def cmd_newgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     state_manager.create_game(chat_id, game)
 
     msg = fmt.fmt_game_created(username, rounds)
-    await update.message.reply_text(msg, parse_mode="HTML")
+    await update.message.reply_text(
+        msg, 
+        parse_mode="HTML",
+        reply_markup=keyboards.join_keyboard()
+    )
     logger.info("/newgame by %s in chat %d (%d rounds)", username, chat_id, rounds)
 
 

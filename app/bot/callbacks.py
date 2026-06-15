@@ -47,7 +47,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
       - "finish_game"    → end game and show leaderboard
     """
     query = update.callback_query
-    await query.answer()  # acknowledge immediately; re-answered below if needed
 
     data = query.data
     chat_id = update.effective_chat.id
@@ -300,3 +299,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     except GameException as e:
         await query.answer(e.message, show_alert=True)
+    finally:
+        try:
+            await query.answer()
+        except Exception:
+            pass

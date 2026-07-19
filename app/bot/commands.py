@@ -653,29 +653,43 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     rank = get_card_rank(card)
     
     try:
-        drop_results = game_engine.process_drop(game, user.id, [rank])
-        state_manager.save_game(chat_id, game)
-        
-        cancel_turn_timer(chat_id)
-        
-        # Announce the drop
-        drop_msg = fmt.format_drop_announcement(player["name"], drop_results)
-        await context.bot.send_message(chat_id=chat_id, text=drop_msg, parse_mode="HTML")
-        
-        # Check if they won
-        if not player["hand"]:
-            game["status"] = "ended"
-            state_manager.save_game(chat_id, game)
-            win_msg = fmt.format_round_win(player["name"], game)
-            await context.bot.send_message(chat_id=chat_id, text=win_msg, parse_mode="HTML")
-            return
+        result = game_engine.process_drop(game, user.id, [rank])
+        state_manager.update_game(chat_id, game)
+
+        from app.bot.helpers import update_hand_dm
+        from app.bot.timer import cancel_turn_timer, start_turn_timer
+        from app.bot.helpers import send_new_turn_message
+        import html
+
+        if result["turn_advanced"]:
+            # Turn ended (Match or Hand Empty)
+            await cancel_turn_timer(context, chat_id)
+            await send_new_turn_message(context, chat_id, game, edit_only=False)
+            await start_turn_timer(context, chat_id, game)
+        else:
+            # Turn continues: player must now pick or draw
+            await cancel_turn_timer(context, chat_id)
             
-        # Move to next turn
-        game_engine.next_turn(game)
-        state_manager.save_game(chat_id, game)
-        await send_new_turn_message(context.bot, chat_id, game)
-        start_turn_timer(chat_id, context)
+            # Send an individual warning message with the buttons attached
+            safe_name = html.escape(user.first_name or user.username or "Player")
+            is_initial = game.get("is_initial_open_card", True)
+            pick_label = "Pick Open Card" if is_initial else "Pick Dropped Card"
+            warning_msg = f"⚠️ <b>NO MATCH!</b> {safe_name}, you must now <b>{pick_label}</b> or <b>Draw from Pile</b>."
+            bot_info = await context.bot.get_me()
+            warning_msg_obj = await context.bot.send_message(
+                chat_id=chat_id, 
+                text=warning_msg, 
+                reply_markup=keyboards.must_draw_keyboard(game, bot_info.username),
+                parse_mode="HTML"
+            )
+            game["warning_message_id"] = warning_msg_obj.message_id
+            
+            # Update turn message in place so we don't spam the chat with a new one
+            await send_new_turn_message(context, chat_id, game, edit_only=True)
+            await start_turn_timer(context, chat_id, game)
+
+        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
         
     except GameException as e:
         # We reply to the sticker if there's an error (e.g. not their turn)
-        await message.reply_text(f"❌ {str(e)}")
+        await message.reply_text(f"❌ {e.message}")

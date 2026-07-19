@@ -11,6 +11,15 @@ from app.core.card_utils import format_card
 
 logger = logging.getLogger(__name__)
 
+import json
+import os
+
+try:
+    with open(os.path.join("app", "bot", "stickers.json")) as f:
+        STICKERS = json.load(f)
+except Exception:
+    STICKERS = {}
+
 TURN_TIMEOUT_SECONDS = 60
 
 async def start_turn_timer(context: ContextTypes.DEFAULT_TYPE, chat_id: int, game: dict, message_id: int = None, is_startgame: bool = False) -> None:
@@ -151,6 +160,7 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
         drawn_card, dropped_cards, hand_empty = game_engine.process_timeout(game, player_id)
         state_manager.update_game(chat_id, game)
 
+
         # Announce timeout to group
         if dropped_cards:
             formatted_drops = [format_card(c) for c in dropped_cards]
@@ -169,6 +179,16 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
             text=announcement,
             parse_mode="HTML"
         )
+        
+        # Send stickers for dropped cards visually
+        if dropped_cards:
+            for c in dropped_cards:
+                sticker_id = STICKERS.get(c)
+                if sticker_id:
+                    try:
+                        await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
+                    except Exception as e:
+                        logger.warning(f"Could not send sticker for {c}: {e}")
 
         if hand_empty:
             await context.bot.send_message(

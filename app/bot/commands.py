@@ -642,7 +642,7 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
         
     game = state_manager.get_game(chat_id)
-    if game["status"] != "playing":
+    if game["status"] != "running":
         return
         
     player = state_manager.get_player(game, user.id)

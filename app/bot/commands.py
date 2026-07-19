@@ -112,8 +112,8 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         if game["status"] != "waiting":
             await update.message.reply_text("❌ Game has already started!")
             return
-        if len(game["players"]) < 2:
-            await update.message.reply_text("❌ Need at least 2 players to start. Current: " + str(len(game["players"])))
+        if len(game["players"]) < 1:
+            await update.message.reply_text("❌ Need at least 1 player to start for testing. Current: " + str(len(game["players"])))
             return
 
         game_engine.deal_initial_cards(game)

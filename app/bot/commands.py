@@ -23,6 +23,16 @@ from app.core.exceptions import GameException
 
 logger = logging.getLogger(__name__)
 
+import os
+import json
+
+STICKERS_PATH = os.path.join(os.path.dirname(__file__), "stickers.json")
+try:
+    with open(STICKERS_PATH, "r") as f:
+        STICKERS = json.load(f)
+except Exception:
+    STICKERS = {}
+
 
 # ══════════════════════════════════════════════════════════════════
 # COMMAND HANDLERS
@@ -551,7 +561,7 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
         
     user_id = query.from_user.id
-    from telegram import InlineQueryResultArticle, InputTextMessageContent
+    from telegram import InlineQueryResultArticle, InlineQueryResultCachedSticker, InputTextMessageContent
     import uuid
     
     # Find the game where this user is active
@@ -573,66 +583,28 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not player:
         return
         
-    from collections import Counter
-    from app.core.card_utils import get_card_rank, get_card_suit, is_joker_card, format_card
-    
-    # Get unique ranks and their counts
-    rank_counts = Counter(get_card_rank(c) for c in player["hand"])
+    from app.core.card_utils import get_card_rank
     
     results = []
     
-    for rank, count in rank_counts.items():
-        # Get one representative card to display its image
-        rep_card = next(c for c in player["hand"] if get_card_rank(c) == rank)
-        suit = get_card_suit(rep_card)
-        display = format_card(rep_card)
-        
-        # Build URL for deckofcardsapi.com
-        if is_joker_card(rep_card):
-            thumb_url = "https://deckofcardsapi.com/static/img/X1.png"
-        else:
-            api_rank = "0" if rank == "10" else rank
-            thumb_url = f"https://deckofcardsapi.com/static/img/{api_rank}{suit}.png"
-            
-        if count == 1:
+    for idx, card in enumerate(player["hand"]):
+        # card is a string like "10C", "JK1"
+        sticker_file_id = STICKERS.get(card)
+        if sticker_file_id:
+            # We map each individual card in the hand to its sticker!
+            # The title isn't shown on stickers, but input_message_content controls what is sent.
+            # When tapped, they will send "/drop <rank>"
+            rank = get_card_rank(card)
             results.append(
-                InlineQueryResultArticle(
+                InlineQueryResultCachedSticker(
                     id=str(uuid.uuid4()),
-                    title=f"Drop {display}",
-                    description=f"Drop 1 card of rank {rank}",
-                    thumbnail_url=thumb_url,
-                    thumbnail_width=50,
-                    thumbnail_height=70,
+                    sticker_file_id=sticker_file_id,
+                    reply_markup=None, # no markup needed
                     input_message_content=InputTextMessageContent(f"/drop {rank}")
                 )
             )
-        else:
-            # Option to drop just one
-            results.append(
-                InlineQueryResultArticle(
-                    id=str(uuid.uuid4()),
-                    title=f"Drop one {display}",
-                    description=f"Drop 1 card of rank {rank} (You have {count})",
-                    thumbnail_url=thumb_url,
-                    thumbnail_width=50,
-                    thumbnail_height=70,
-                    input_message_content=InputTextMessageContent(f"/drop {rank}")
-                )
-            )
-            # Option to drop all of that rank
-            drop_cmd = " ".join([rank] * count)
-            results.append(
-                InlineQueryResultArticle(
-                    id=str(uuid.uuid4()),
-                    title=f"Drop all {count} {rank}s",
-                    description=f"Drop all {count} cards of rank {rank}",
-                    thumbnail_url=thumb_url,
-                    thumbnail_width=50,
-                    thumbnail_height=70,
-                    input_message_content=InputTextMessageContent(f"/drop {drop_cmd}")
-                )
-            )
             
+    # If for some reason we have no stickers mapped (e.g. JSON missing), fallback is empty and telegram will show "No results"
     await query.answer(results, cache_time=0, is_personal=True)
 
 

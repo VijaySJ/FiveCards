@@ -23,7 +23,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin, get_group_link, send_new_turn_message
+from app.bot.helpers import is_group_admin, get_group_link, send_new_turn_message
 from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.core.exceptions import GameException
 
@@ -126,29 +126,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
 
-            # ── action:hand / show_hand ───────────────────────────────────────
-            elif data in ("action:hand", "action:show_hand"):
-                player = state_manager.get_player(game, user.id)
-                if not player:
-                    await query.answer("❌ You are not in this game.", show_alert=True)
-                    return
-                
-                # Option A: Direct DM (Faster)
-                hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-                group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
-                sent = await send_dm(
-                    context.bot, user.id, hand_msg,
-                    username=player["username"], chat_id=chat_id,
-                    reply_markup=keyboards.dm_keyboard(group_link),
-                )
-                
-                if sent:
-                    await query.answer("📬 Hand sent to your DM!")
-                else:
-                    # Option B: Deep link fallback
-                    bot_username = (await context.bot.get_me()).username
-                    await query.answer(url=f"https://t.me/{bot_username}?start=hand")
-                return
 
             elif data == "action:declare":
                 try:
@@ -221,17 +198,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await query.answer("🎉 Successfully joined the game!")
             logger.info("Button /join by %s in chat %d", username, chat_id)
 
-        # ── Legacy view_hand ──────────────────────────────────────────────────
-        elif data == "view_hand":
-            game = state_manager.get_game_or_raise(chat_id)
-            player = state_manager.get_player_or_raise(game, user.id)
-            hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-            group_link = await get_group_link(context.bot, chat_id)
-            await send_dm(
-                context.bot, user.id, hand_msg,
-                username=player["username"], chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(group_link),
-            )
 
         # ── see_scores ────────────────────────────────────────────────────────
         elif data == "see_scores":
@@ -259,17 +225,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # Send a NEW turn message for the new round
             await send_new_turn_message(context, chat_id, game)
 
-            group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
-            for player in game["players"]:
-                uid = player["user_id"]
-                hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-                msg_id = await send_dm(
-                    context.bot, uid, hand_msg,
-                    username=player["username"], chat_id=chat_id,
-                    reply_markup=keyboards.dm_keyboard(group_link),
-                )
-                if msg_id:
-                    player["dm_message_id"] = msg_id
             await start_turn_timer(
                 context, chat_id, game,
                 message_id=game.get("keyboard_message_id"),

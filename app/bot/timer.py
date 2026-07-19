@@ -5,7 +5,7 @@ from app.services import state_manager
 from app.core import game_engine
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, get_group_link, send_new_turn_message
+from app.bot.helpers import get_group_link, send_new_turn_message
 from app.core.exceptions import GameException
 from app.core.card_utils import format_card
 

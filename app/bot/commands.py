@@ -16,7 +16,7 @@ from app.core import game_engine
 from app.services import state_manager
 from app.services import message_formatter as fmt
 from app.bot import keyboards
-from app.bot.helpers import send_dm, is_group_admin, get_group_link, send_new_turn_message
+from app.bot.helpers import is_group_admin, get_group_link, send_new_turn_message
 from app.bot.timer import start_turn_timer, cancel_turn_timer
 from app.config.settings import DEFAULT_ROUNDS, MAX_ROUNDS
 from app.core.exceptions import GameException

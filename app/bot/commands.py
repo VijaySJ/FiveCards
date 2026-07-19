@@ -647,6 +647,13 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         result = game_engine.process_drop(game, user.id, ranks_to_drop)
         state_manager.update_game(chat_id, game)
+        
+        # Visually send the other auto-dropped cards to the chat
+        other_cards = [c for c in matching_cards if c != card]
+        for oc in other_cards:
+            sticker_id = STICKERS.get(oc)
+            if sticker_id:
+                await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
 
         from app.bot.helpers import update_hand_dm
         from app.bot.timer import cancel_turn_timer, start_turn_timer

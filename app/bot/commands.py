@@ -609,7 +609,16 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
             )
             
-    # If for some reason we have no stickers mapped (e.g. JSON missing), fallback is empty and telegram will show "No results"
+    if not results:
+        results.append(
+            InlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title="No Stickers Found ❌",
+                description="Failed to load stickers or hand is empty.",
+                input_message_content=InputTextMessageContent("Error loading stickers!")
+            )
+        )
+        
     await query.answer(results, cache_time=0, is_personal=True)
 
 

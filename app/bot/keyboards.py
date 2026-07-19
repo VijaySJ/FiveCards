@@ -36,7 +36,7 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = No
         buttons.append([
             InlineKeyboardButton(
                 "⏬ Drop the Card",
-                switch_inline_query_current_chat="/drop"
+                switch_inline_query_current_chat=""
             ),
         ])
         buttons.append([

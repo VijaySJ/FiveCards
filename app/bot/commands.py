@@ -551,7 +551,7 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
         
     user_id = query.from_user.id
-    from telegram import InlineQueryResultArticle, InputTextMessageContent
+    from telegram import InlineQueryResultPhoto, InlineQueryResultArticle, InputTextMessageContent
     import uuid
     
     # Find the game where this user is active
@@ -565,7 +565,7 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 description="Start a new game with /newgame to see your cards.",
                 input_message_content=InputTextMessageContent("I'm not in an active game right now!")
             )
-        ], cache_time=1, is_personal=True)
+        ], cache_time=0, is_personal=True)
         return
         
     chat_id, game = game_data
@@ -596,44 +596,47 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
         if count == 1:
             results.append(
-                InlineQueryResultArticle(
+                InlineQueryResultPhoto(
                     id=str(uuid.uuid4()),
                     title=f"Drop {display}",
                     description=f"Drop 1 card of rank {rank}",
+                    photo_url=thumb_url,
                     thumbnail_url=thumb_url,
-                    thumbnail_width=50,
-                    thumbnail_height=70,
+                    photo_width=226,
+                    photo_height=314,
                     input_message_content=InputTextMessageContent(f"/drop {rank}")
                 )
             )
         else:
             # Option to drop just one
             results.append(
-                InlineQueryResultArticle(
+                InlineQueryResultPhoto(
                     id=str(uuid.uuid4()),
                     title=f"Drop one {display}",
                     description=f"Drop 1 card of rank {rank} (You have {count})",
+                    photo_url=thumb_url,
                     thumbnail_url=thumb_url,
-                    thumbnail_width=50,
-                    thumbnail_height=70,
+                    photo_width=226,
+                    photo_height=314,
                     input_message_content=InputTextMessageContent(f"/drop {rank}")
                 )
             )
             # Option to drop all of that rank
             drop_cmd = " ".join([rank] * count)
             results.append(
-                InlineQueryResultArticle(
+                InlineQueryResultPhoto(
                     id=str(uuid.uuid4()),
                     title=f"Drop all {count} {rank}s",
                     description=f"Drop all {count} cards of rank {rank}",
+                    photo_url=thumb_url,
                     thumbnail_url=thumb_url,
-                    thumbnail_width=50,
-                    thumbnail_height=70,
+                    photo_width=226,
+                    photo_height=314,
                     input_message_content=InputTextMessageContent(f"/drop {drop_cmd}")
                 )
             )
             
-    await query.answer(results, cache_time=1, is_personal=True)
+    await query.answer(results, cache_time=0, is_personal=True)
 
 
 

@@ -69,8 +69,6 @@ def fmt_game_starting(game: dict, time_left: int = 60) -> str:
         f"{fmt_card_counts(game)}",
         "",
         f"▶️ <b>{first_player['username']}'s turn!</b> (⏳ {time_left}s)",
-        "",
-        "📬 <i>Check your DM for your cards!</i>",
     ]
     return "\n".join(lines)
 
@@ -171,39 +169,8 @@ def _fmt_hand_visual(hand: list[str], joker_rank: str) -> str:
     return "\n".join(lines)
 
 
-def fmt_hand_dm(player: dict, joker_rank: str) -> str:
-    """Format the private hand message sent via DM."""
-    hand = player["hand"]
-    pts = hand_value(hand, joker_rank)
-    
-    safe_name = html.escape(player['username'])
-    return (
-        f"<b>🃏 YOUR HAND</b>\n"
-        f"👤 <b>Player:</b> {safe_name}\n"
-        f"\n"
-        f"{_fmt_hand_visual(hand, joker_rank)}\n"
-        f"\n"
-        f"📊 <b>Total Points:</b> {pts}\n"
-        f"🃏 <b>Joker Rank:</b> {joker_rank}\n"
-        f"\n"
-        f"<i>Tap below to return to the play area</i>"
-    )
 
 
-def fmt_must_draw_dm(player: dict, joker_rank: str) -> str:
-    """Format the reminder sent via DM when a player must draw."""
-    pts = hand_value(player["hand"], joker_rank)
-    return (
-        f"<b>⚠️ ACTION NEEDED</b>\n"
-        f"<i>No Match! You must draw a card.</i>\n"
-        f"\n"
-        f"{_fmt_hand_visual(player['hand'], joker_rank)}\n"
-        f"\n"
-        f"📊 <b>Total Points:</b> {pts}\n"
-        f"\n"
-        f"👉 <b>Return to group and click:</b>\n"
-        f"   [🎴 Draw from Pile] or [📥 Pick Open Card]"
-    )
 
 
 def fmt_player_picked(username: str) -> str:

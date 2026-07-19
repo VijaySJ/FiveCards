@@ -96,8 +96,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Step 1: Send a NEW turn message for individual turn logs
                 await send_new_turn_message(context, chat_id, game)
 
-                from app.bot.helpers import update_hand_dm
-                asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
+
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)
@@ -122,8 +121,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Step 1: Send a NEW turn message for individual turn logs
                 await send_new_turn_message(context, chat_id, game)
 
-                from app.bot.helpers import update_hand_dm
-                asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
+
                 
                 # Step 2: Start 60s timer for next player
                 await start_turn_timer(context, chat_id, game)

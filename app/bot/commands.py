@@ -206,9 +206,7 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 
         state_manager.update_game(chat_id, game)
 
-        from app.bot.helpers import send_new_turn_message, update_hand_dm
-        await send_new_turn_message(context, chat_id, game)
-        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
+        from app.bot.helpers import send_new_turn_message
         await start_turn_timer(context, chat_id, game)
         logger.info("/pick by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -236,9 +234,7 @@ async def cmd_draw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 
         state_manager.update_game(chat_id, game)
 
-        from app.bot.helpers import send_new_turn_message, update_hand_dm
-        await send_new_turn_message(context, chat_id, game)
-        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
+        from app.bot.helpers import send_new_turn_message
         await start_turn_timer(context, chat_id, game)
         logger.info("/draw by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -323,7 +319,7 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = game_engine.process_drop(game, user.id, args)
         state_manager.update_game(chat_id, game)
 
-        from app.bot.helpers import update_hand_dm
+
 
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
@@ -351,8 +347,6 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             # Update turn message in place so we don't spam the chat with a new one
             await send_new_turn_message(context, chat_id, game, edit_only=True)
             await start_turn_timer(context, chat_id, game)
-
-        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
 
         logger.info("/drop by %d in chat %d", user.id, chat_id)
     except GameException as e:
@@ -388,29 +382,6 @@ async def cmd_declare(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except GameException as e:
         await update.message.reply_text(e.message)
 
-
-async def cmd_hand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /hand — Send the player's current hand via DM."""
-    chat_id = update.effective_chat.id
-    user = update.effective_user
-
-    try:
-        game = state_manager.get_game_or_raise(chat_id)
-        player = state_manager.get_player_or_raise(game, user.id)
-
-        hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id)
-        sent = await send_dm(
-            context.bot, user.id, hand_msg,
-            username=player["username"], chat_id=chat_id,
-            reply_markup=keyboards.dm_keyboard(group_link),
-        )
-        if sent:
-            player["dm_message_id"] = sent
-            state_manager.update_game(chat_id, game)
-            await update.message.reply_text("📬 Hand sent to your DM!")
-    except GameException as e:
-        await update.message.reply_text(e.message)
 
 
 async def cmd_scores(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -501,26 +472,6 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start — Welcome message or deep-link handler."""
     user = update.effective_user
-    if context.args and context.args[0] == "hand":
-        res = state_manager.find_game_by_user_id(user.id)
-        if not res:
-            await update.message.reply_text("❌ You are not in any active game.")
-            return
-        
-        chat_id, game = res
-        player = state_manager.get_player(game, user.id)
-        
-        hand_text = fmt.fmt_hand_dm(player, game["joker_rank"])
-        group_link = await get_group_link(context.bot, chat_id, message_id=game.get("keyboard_message_id", 1))
-        
-        msg = await update.message.reply_text(
-            hand_text,
-            parse_mode="HTML",
-            reply_markup=keyboards.dm_keyboard(group_link)
-        )
-        player["dm_message_id"] = msg.message_id
-        state_manager.update_game(chat_id, game)
-        return
 
     await update.message.reply_text(
         "🃏 Welcome to 5 Cards!\n\n"
@@ -655,7 +606,7 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if sticker_id:
                 await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
 
-        from app.bot.helpers import update_hand_dm
+
         from app.bot.timer import cancel_turn_timer, start_turn_timer
         from app.bot.helpers import send_new_turn_message
         import html
@@ -687,8 +638,6 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await send_new_turn_message(context, chat_id, game, edit_only=True)
             await start_turn_timer(context, chat_id, game)
 
-        asyncio.create_task(update_hand_dm(context, chat_id, game, user.id))
-        
     except GameException as e:
         # We reply to the sticker if there's an error (e.g. not their turn)
         await message.reply_text(f"❌ {e.message}")

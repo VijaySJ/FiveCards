@@ -25,7 +25,6 @@ from app.bot.commands import (
     cmd_draw,
     cmd_drop,
     cmd_declare,
-    cmd_hand,
     cmd_scores,
     cmd_debugstate,
     cmd_endgame,
@@ -83,7 +82,6 @@ def main() -> None:
     app.add_handler(CommandHandler("pick", cmd_pick))
     app.add_handler(CommandHandler("draw", cmd_draw))
     app.add_handler(CommandHandler("drop", cmd_drop))
-    app.add_handler(CommandHandler("hand", cmd_hand))
     app.add_handler(CommandHandler("scores", cmd_scores))
     app.add_handler(CommandHandler("debugstate", cmd_debugstate))
 

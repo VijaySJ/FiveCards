@@ -78,26 +78,6 @@ def turn_keyboard(game: dict = None) -> InlineKeyboardMarkup:
     return persistent_game_keyboard(game=game)
 
 
-def dm_keyboard(group_link: str) -> InlineKeyboardMarkup:
-    """Build the keyboard shown in bot DM messages.
-
-    Provides a quick link back to the group chat where the game
-    is being played. The link is dynamically determined.
-
-    Args:
-        group_link: URL to the group chat (dynamic, from chat info).
-
-    Buttons:
-      [🔙 Go Back to Play Area]
-
-    Returns:
-        InlineKeyboardMarkup with a group-link button.
-    """
-    keyboard = [
-        [InlineKeyboardButton("🔙 Go Back to Play Area", url=group_link)],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
 
 def deal_keyboard() -> InlineKeyboardMarkup:
     """Build the keyboard shown after dealing cards.

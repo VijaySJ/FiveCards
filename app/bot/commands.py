@@ -119,33 +119,11 @@ async def cmd_startgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         game_engine.deal_initial_cards(game)
         state_manager.update_game(chat_id, game)
 
-        group_link = await get_group_link(context.bot, chat_id)
-        for player in game["players"]:
-            uid = player["user_id"]
-            hand_msg = fmt.fmt_hand_dm(player, game["joker_rank"])
-            msg_id = await send_dm(
-                context.bot, uid, hand_msg,
-                username=player["username"], chat_id=chat_id,
-                reply_markup=keyboards.dm_keyboard(group_link),
-            )
-            if msg_id:
-                player["dm_message_id"] = msg_id
-
-        # CHANGE #1: Send the ONE persistent keyboard message and store its ID
-        start_msg = fmt.fmt_turn_announcement(game, 60)
-        bot_info = await context.bot.get_me()
-        msg = await update.message.reply_text(
-            start_msg,
-            reply_markup=keyboards.persistent_game_keyboard(bot_info.username, game=game),
-            parse_mode="HTML"
-        )
-
-        # Store keyboard_message_id in game state so all callers can edit it
-        game["keyboard_message_id"] = msg.message_id
-        state_manager.update_game(chat_id, game)
-
-        await start_turn_timer(context, chat_id, game, message_id=msg.message_id, is_startgame=False)
-        logger.info("/startgame in chat %d — %d players, keyboard_msg=%d", chat_id, len(game["players"]), msg.message_id)
+        # Game started!
+        await send_new_turn_message(context, chat_id, game)
+        await start_turn_timer(context, chat_id, game, is_startgame=True)
+        
+        logger.info("/startgame in chat %d — %d players", chat_id, len(game["players"]))
     except GameException as e:
         await update.message.reply_text(e.message)
 

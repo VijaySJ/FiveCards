@@ -540,13 +540,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle inline queries for the /drop rank picker."""
+    """Handle inline queries for showing hand and dropping cards."""
     query = update.inline_query
     if not query:
         return
     
     text = query.query.lower().strip()
-    if not text.startswith("/drop"):
+    # If there's text and it's not a drop command, ignore (unless it's just empty to show hand)
+    if text and not text.startswith("/drop"):
         return
         
     user_id = query.from_user.id
@@ -560,23 +561,69 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not player:
         return
         
-    # Get unique ranks in hand
-    ranks = sorted(list(set(game_engine.get_ranks_in_hand(player["hand"]))))
-    
     from telegram import InlineQueryResultArticle, InputTextMessageContent
     import uuid
+    from collections import Counter
+    from app.core.card_utils import get_card_rank, get_card_suit, is_joker_card, format_card
+    
+    # Get unique ranks and their counts
+    rank_counts = Counter(get_card_rank(c) for c in player["hand"])
     
     results = []
-    for r in ranks:
-        results.append(
-            InlineQueryResultArticle(
-                id=str(uuid.uuid4()),
-                title=f"Drop {r}",
-                description=f"Drop card(s) of rank {r}",
-                input_message_content=InputTextMessageContent(f"/drop {r}")
-            )
-        )
+    
+    for rank, count in rank_counts.items():
+        # Get one representative card to display its image
+        rep_card = next(c for c in player["hand"] if get_card_rank(c) == rank)
+        suit = get_card_suit(rep_card)
+        display = format_card(rep_card)
         
-    await query.answer(results, cache_time=1)
+        # Build URL for deckofcardsapi.com
+        if is_joker_card(rep_card):
+            thumb_url = "https://deckofcardsapi.com/static/img/X1.png"
+        else:
+            api_rank = "0" if rank == "10" else rank
+            thumb_url = f"https://deckofcardsapi.com/static/img/{api_rank}{suit}.png"
+            
+        if count == 1:
+            results.append(
+                InlineQueryResultArticle(
+                    id=str(uuid.uuid4()),
+                    title=f"Drop {display}",
+                    description=f"Drop 1 card of rank {rank}",
+                    thumbnail_url=thumb_url,
+                    thumbnail_width=50,
+                    thumbnail_height=70,
+                    input_message_content=InputTextMessageContent(f"/drop {rank}")
+                )
+            )
+        else:
+            # Option to drop just one
+            results.append(
+                InlineQueryResultArticle(
+                    id=str(uuid.uuid4()),
+                    title=f"Drop one {display}",
+                    description=f"Drop 1 card of rank {rank} (You have {count})",
+                    thumbnail_url=thumb_url,
+                    thumbnail_width=50,
+                    thumbnail_height=70,
+                    input_message_content=InputTextMessageContent(f"/drop {rank}")
+                )
+            )
+            # Option to drop all of that rank
+            drop_cmd = " ".join([rank] * count)
+            results.append(
+                InlineQueryResultArticle(
+                    id=str(uuid.uuid4()),
+                    title=f"Drop all {count} {rank}s",
+                    description=f"Drop all {count} cards of rank {rank}",
+                    thumbnail_url=thumb_url,
+                    thumbnail_width=50,
+                    thumbnail_height=70,
+                    input_message_content=InputTextMessageContent(f"/drop {drop_cmd}")
+                )
+            )
+            
+    await query.answer(results, cache_time=1, is_personal=True)
+
 
 

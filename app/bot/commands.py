@@ -568,11 +568,17 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not player:
         return
         
-    from app.core.card_utils import get_card_rank
+    from app.core.card_utils import get_card_rank, card_point_value
     
     results = []
     
-    for idx, card in enumerate(player["hand"]):
+    joker_rank = game.get("joker_rank", "A")
+    sorted_hand = sorted(
+        player["hand"], 
+        key=lambda c: card_point_value(c, joker_rank)
+    )
+    
+    for idx, card in enumerate(sorted_hand):
         # card is a string like "10C", "JK1"
         sticker_file_id = STICKERS.get(card)
         if sticker_file_id:

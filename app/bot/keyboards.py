@@ -29,7 +29,14 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = No
     buttons = []
     phase = game.get("turn_phase", "must_discard") if game else "must_discard"
 
-    if phase != "must_draw":
+    if phase == "must_draw":
+        is_initial = game.get("is_initial_open_card", True) if game else True
+        pick_label = "📥 Pick Open Card" if is_initial else "📥 Pick Dropped Card"
+        buttons.append([
+            InlineKeyboardButton(pick_label, callback_data="action:pick"),
+            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
+        ])
+    else:
         buttons.append([
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),
         ])
@@ -39,9 +46,10 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = No
                 switch_inline_query_current_chat=""
             ),
         ])
-        buttons.append([
-            InlineKeyboardButton("🃏 Card In Hand", switch_inline_query_current_chat=""),
-        ])
+        
+    buttons.append([
+        InlineKeyboardButton("🃏 Card In Hand", switch_inline_query_current_chat=""),
+    ])
 
     return InlineKeyboardMarkup(buttons)
 

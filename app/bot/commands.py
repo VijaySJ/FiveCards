@@ -33,6 +33,13 @@ try:
 except Exception:
     STICKERS = {}
 
+UNIQUE_STICKERS_PATH = os.path.join(os.path.dirname(__file__), "unique_stickers.json")
+try:
+    with open(UNIQUE_STICKERS_PATH, "r") as f:
+        UNIQUE_STICKERS = json.load(f)
+except Exception:
+    UNIQUE_STICKERS = {}
+
 
 # ══════════════════════════════════════════════════════════════════
 # COMMAND HANDLERS
@@ -592,15 +599,13 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         sticker_file_id = STICKERS.get(card)
         if sticker_file_id:
             # We map each individual card in the hand to its sticker!
-            # The title isn't shown on stickers, but input_message_content controls what is sent.
-            # When tapped, they will send "/drop <rank>"
-            rank = get_card_rank(card)
+            # We DO NOT set input_message_content, because doing so causes Telegram mobile clients
+            # to render the results as a generic vertical list. Leaving it out makes it a horizontal sticker slider.
+            # When tapped, the sticker itself will be sent to the group.
             results.append(
                 InlineQueryResultCachedSticker(
                     id=str(uuid.uuid4()),
-                    sticker_file_id=sticker_file_id,
-                    reply_markup=None, # no markup needed
-                    input_message_content=InputTextMessageContent(f"/drop {rank}")
+                    sticker_file_id=sticker_file_id
                 )
             )
             
@@ -608,4 +613,60 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await query.answer(results, cache_time=0, is_personal=True)
 
 
-
+async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle stickers sent to the group and execute a drop if it's a valid card."""
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+    message = update.message
+    
+    if not message or not message.sticker:
+        return
+        
+    unique_id = message.sticker.file_unique_id
+    card = UNIQUE_STICKERS.get(unique_id)
+    
+    if not card:
+        return # Not a FiveCards game sticker
+        
+    # We found a card! This is equivalent to "/drop <rank>"
+    if not state_manager.game_exists(chat_id):
+        return
+        
+    game = state_manager.get_game(chat_id)
+    if game["status"] != "playing":
+        return
+        
+    player = state_manager.get_player(game, user.id)
+    if not player:
+        return
+        
+    from app.core.card_utils import get_card_rank
+    rank = get_card_rank(card)
+    
+    try:
+        drop_results = game_engine.process_drop(game, user.id, [rank])
+        state_manager.save_game(chat_id, game)
+        
+        cancel_turn_timer(chat_id)
+        
+        # Announce the drop
+        drop_msg = fmt.format_drop_announcement(player["name"], drop_results)
+        await context.bot.send_message(chat_id=chat_id, text=drop_msg, parse_mode="HTML")
+        
+        # Check if they won
+        if not player["hand"]:
+            game["status"] = "ended"
+            state_manager.save_game(chat_id, game)
+            win_msg = fmt.format_round_win(player["name"], game)
+            await context.bot.send_message(chat_id=chat_id, text=win_msg, parse_mode="HTML")
+            return
+            
+        # Move to next turn
+        game_engine.next_turn(game)
+        state_manager.save_game(chat_id, game)
+        await send_new_turn_message(context.bot, chat_id, game)
+        start_turn_timer(chat_id, context)
+        
+    except GameException as e:
+        # We reply to the sticker if there's an error (e.g. not their turn)
+        await message.reply_text(f"❌ {str(e)}")

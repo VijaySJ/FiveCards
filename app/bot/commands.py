@@ -551,7 +551,7 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
         
     user_id = query.from_user.id
-    from telegram import InlineQueryResultPhoto, InlineQueryResultArticle, InputTextMessageContent
+    from telegram import InlineQueryResultArticle, InputTextMessageContent
     import uuid
     
     # Find the game where this user is active
@@ -596,42 +596,39 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
         if count == 1:
             results.append(
-                InlineQueryResultPhoto(
+                InlineQueryResultArticle(
                     id=str(uuid.uuid4()),
                     title=f"Drop {display}",
                     description=f"Drop 1 card of rank {rank}",
-                    photo_url=thumb_url,
                     thumbnail_url=thumb_url,
-                    photo_width=226,
-                    photo_height=314,
+                    thumbnail_width=50,
+                    thumbnail_height=70,
                     input_message_content=InputTextMessageContent(f"/drop {rank}")
                 )
             )
         else:
             # Option to drop just one
             results.append(
-                InlineQueryResultPhoto(
+                InlineQueryResultArticle(
                     id=str(uuid.uuid4()),
                     title=f"Drop one {display}",
                     description=f"Drop 1 card of rank {rank} (You have {count})",
-                    photo_url=thumb_url,
                     thumbnail_url=thumb_url,
-                    photo_width=226,
-                    photo_height=314,
+                    thumbnail_width=50,
+                    thumbnail_height=70,
                     input_message_content=InputTextMessageContent(f"/drop {rank}")
                 )
             )
             # Option to drop all of that rank
             drop_cmd = " ".join([rank] * count)
             results.append(
-                InlineQueryResultPhoto(
+                InlineQueryResultArticle(
                     id=str(uuid.uuid4()),
                     title=f"Drop all {count} {rank}s",
                     description=f"Drop all {count} cards of rank {rank}",
-                    photo_url=thumb_url,
                     thumbnail_url=thumb_url,
-                    photo_width=226,
-                    photo_height=314,
+                    thumbnail_width=50,
+                    thumbnail_height=70,
                     input_message_content=InputTextMessageContent(f"/drop {drop_cmd}")
                 )
             )

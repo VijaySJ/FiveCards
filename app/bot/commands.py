@@ -551,9 +551,21 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
         
     user_id = query.from_user.id
+    from telegram import InlineQueryResultArticle, InputTextMessageContent
+    import uuid
+    
     # Find the game where this user is active
     game_data = state_manager.find_game_by_user_id(user_id)
     if not game_data:
+        # Give immediate visual feedback if the game state was lost (e.g. server restart)
+        await query.answer([
+            InlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title="No active game found! ❌",
+                description="Start a new game with /newgame to see your cards.",
+                input_message_content=InputTextMessageContent("I'm not in an active game right now!")
+            )
+        ], cache_time=1, is_personal=True)
         return
         
     chat_id, game = game_data
@@ -561,8 +573,6 @@ async def cmd_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not player:
         return
         
-    from telegram import InlineQueryResultArticle, InputTextMessageContent
-    import uuid
     from collections import Counter
     from app.core.card_utils import get_card_rank, get_card_suit, is_joker_card, format_card
     

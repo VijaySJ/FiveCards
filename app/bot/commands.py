@@ -652,8 +652,16 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     from app.core.card_utils import get_card_rank
     rank = get_card_rank(card)
     
+    # Option 2: Auto-Drop all matching cards of the selected rank
+    matching_cards = [
+        c for c in player["hand"]
+        if get_card_rank(c) == rank
+    ]
+    # Fallback to single rank if something is weird, though matching_cards should always have at least 1
+    ranks_to_drop = [rank] * len(matching_cards) if matching_cards else [rank]
+    
     try:
-        result = game_engine.process_drop(game, user.id, [rank])
+        result = game_engine.process_drop(game, user.id, ranks_to_drop)
         state_manager.update_game(chat_id, game)
 
         from app.bot.helpers import update_hand_dm

@@ -350,7 +350,12 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         logger.info("/drop by %d in chat %d", user.id, chat_id)
     except GameException as e:
-        await update.message.reply_text(f"⚠️ {e.message}")
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+        safe_name = user.username or user.first_name
+        await context.bot.send_message(chat_id=chat_id, text=f"@{safe_name} ⚠️ {e.message}")
     except Exception as e:
         # Senior OG Debugging: Show the actual error so we can fix it!
         error_msg = f"❌ Internal error ({type(e).__name__}): {str(e)}"
@@ -639,5 +644,9 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await start_turn_timer(context, chat_id, game)
 
     except GameException as e:
-        # We reply to the sticker if there's an error (e.g. not their turn)
-        await message.reply_text(f"❌ {e.message}")
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        safe_name = user.username or user.first_name
+        await context.bot.send_message(chat_id=chat_id, text=f"@{safe_name} ❌ {e.message}")

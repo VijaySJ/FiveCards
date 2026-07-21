@@ -183,20 +183,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         # ── action:join ───────────────────────────────────────────────────────
         elif data == "action:join":
-            game = state_manager.get_game_or_raise(chat_id)
-            username = user.first_name or user.username or f"Player_{user.id}"
-            
-            if any(p["user_id"] == user.id for p in game["players"]):
-                await query.answer("✅ You are already in the game!", show_alert=True)
-                return
+            try:
+                game = state_manager.get_game_or_raise(chat_id)
+                username = user.first_name or user.username or f"Player_{user.id}"
                 
-            game_engine.add_player(game, user.id, username, tg_username=user.username)
-            state_manager.update_game(chat_id, game)
+                game_engine.add_player(game, user.id, username, tg_username=user.username)
+                state_manager.update_game(chat_id, game)
 
-            msg = fmt.fmt_player_joined(username, len(game["players"]))
-            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
-            await query.answer("🎉 Successfully joined the game!")
-            logger.info("Button /join by %s in chat %d", username, chat_id)
+                msg = fmt.fmt_player_joined(username, len(game["players"]))
+                await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML")
+                logger.info("Button /join by %s in chat %d", username, chat_id)
+            except GameException as e:
+                await context.bot.send_message(chat_id=chat_id, text=e.message)
 
 
         # ── see_scores ────────────────────────────────────────────────────────

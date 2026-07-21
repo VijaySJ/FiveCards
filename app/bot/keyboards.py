@@ -30,12 +30,9 @@ def persistent_game_keyboard(bot_username: str = "fivecardsbot", game: dict = No
     phase = game.get("turn_phase", "must_discard") if game else "must_discard"
 
     if phase == "must_draw":
-        is_initial = game.get("is_initial_open_card", True) if game else True
-        pick_label = "📥 Pick Open Card" if is_initial else "📥 Pick Dropped Card"
-        buttons.append([
-            InlineKeyboardButton(pick_label, callback_data="action:pick"),
-            InlineKeyboardButton("🎴 Draw from Pile", callback_data="action:draw"),
-        ])
+        # The Pick and Draw buttons are now exclusively shown on the "NO MATCH" warning message.
+        # The main turn message should have no buttons while waiting for the pick/draw.
+        pass
     else:
         buttons.append([
             InlineKeyboardButton("🏳️ Declare", callback_data="action:declare"),

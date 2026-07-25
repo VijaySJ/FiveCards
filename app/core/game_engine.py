@@ -509,7 +509,7 @@ def process_timeout(game: dict, player_id: int) -> tuple[Optional[str], list[str
     return drawn_card, dropped_cards, not player["hand"]
 
 
-def process_declare(game: dict, player_id: int) -> dict[int, int]:
+def process_declare(game: dict, player_id: int, is_auto: bool = False) -> dict[int, int]:
     """Player declares (attempts to win the round).
 
     Declaration is only allowed at the START of a player's turn,
@@ -518,16 +518,18 @@ def process_declare(game: dict, player_id: int) -> dict[int, int]:
     Args:
         game: Game state dict. Mutated in place.
         player_id: User ID of the declaring player.
+        is_auto: If True, bypasses turn validations for automatic end-of-round declarations.
 
     Returns:
         Dict mapping user_id → points scored this round.
     """
-    validate_active_player(game, player_id)
+    if not is_auto:
+        validate_active_player(game, player_id)
 
-    # CHANGE #4 FIX: declare is valid at the START of a turn (must_discard),
-    # NOT after pick/draw (choose_action). The old check was inverted.
-    if game["turn_phase"] != "must_discard":
-        raise WrongPhaseError("must_discard", action="declare")
+        # CHANGE #4 FIX: declare is valid at the START of a turn (must_discard),
+        # NOT after pick/draw (choose_action). The old check was inverted.
+        if game["turn_phase"] != "must_discard":
+            raise WrongPhaseError("must_discard", action="declare")
 
     game["declared_by_id"] = player_id
     game["status"] = "declaring"

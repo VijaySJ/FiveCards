@@ -127,3 +127,29 @@ async def send_new_turn_message(
     except Exception as e:
         logger.error("Could not update turn message: %s", e, exc_info=True)
         raise e
+
+
+async def check_and_handle_end_of_round(context, chat_id: int, game: dict, user_id: int, username: str) -> bool:
+    """Check if only 1 active player is left, and if so, end the round."""
+    from app.core import game_engine
+    from app.bot.timer import cancel_turn_timer
+    
+    active_players_count = sum(1 for p in game["players"] if len(p["hand"]) > 0)
+    if active_players_count <= 1:
+        round_scores = game_engine.process_declare(game, user_id, is_auto=True)
+        state_manager.update_game(chat_id, game)
+        await cancel_turn_timer(context, chat_id)
+        
+        await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_declaration(username + " (Auto)"), parse_mode="HTML")
+        await context.bot.send_message(chat_id=chat_id, text=fmt.fmt_all_hands_revealed(game), parse_mode="HTML")
+        
+        result_msg = fmt.fmt_round_result(game, round_scores, username)
+        is_last = game_engine.is_game_over(game)
+        await context.bot.send_message(
+            chat_id=chat_id, 
+            text=result_msg, 
+            reply_markup=keyboards.next_round_keyboard(is_last), 
+            parse_mode="HTML"
+        )
+        return True
+    return False

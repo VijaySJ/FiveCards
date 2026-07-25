@@ -196,6 +196,12 @@ async def auto_drop_callback(context: ContextTypes.DEFAULT_TYPE) -> None:
                 text=fmt.fmt_player_hand_empty(username),
                 parse_mode="HTML"
             )
+            from app.bot.helpers import check_and_handle_end_of_round
+            is_over = await check_and_handle_end_of_round(
+                context, chat_id, game, player_id, username
+            )
+            if is_over:
+                return
 
         # Send new turn message first — updates keyboard_message_id
         await send_new_turn_message(context, chat_id, game)

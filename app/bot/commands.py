@@ -323,6 +323,13 @@ async def cmd_drop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
+            from app.bot.helpers import check_and_handle_end_of_round
+            is_over = await check_and_handle_end_of_round(
+                context, chat_id, game, user.id, user.first_name or user.username
+            )
+            if is_over:
+                return
+
             await cancel_turn_timer(context, chat_id)
             await send_new_turn_message(context, chat_id, game, edit_only=False)
             await start_turn_timer(context, chat_id, game)
@@ -618,6 +625,13 @@ async def handle_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         if result["turn_advanced"]:
             # Turn ended (Match or Hand Empty)
+            from app.bot.helpers import check_and_handle_end_of_round
+            is_over = await check_and_handle_end_of_round(
+                context, chat_id, game, user.id, user.first_name or user.username
+            )
+            if is_over:
+                return
+
             await cancel_turn_timer(context, chat_id)
             await send_new_turn_message(context, chat_id, game, edit_only=False)
             await start_turn_timer(context, chat_id, game)

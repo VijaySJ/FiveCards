@@ -213,9 +213,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     show_alert=True,
                 )
                 return
+            if game.get("status") != "declaring":
+                await query.answer("⚠️ The next round has already started!", show_alert=True)
+                return
             if game_engine.is_game_over(game):
                 await query.answer("🏁 All rounds completed!", show_alert=True)
                 return
+
+            await query.answer("🔄 Starting next round...")
+            try:
+                await query.edit_message_reply_markup(reply_markup=keyboards.scores_keyboard())
+            except Exception as e:
+                logger.debug("Failed to edit reply markup for next_round: %s", e)
 
             game_engine.start_next_round(game)
             state_manager.update_game(chat_id, game)
@@ -239,6 +248,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     show_alert=True,
                 )
                 return
+
+            await query.answer("🏁 Finishing game...")
+            try:
+                await query.edit_message_reply_markup(reply_markup=keyboards.scores_keyboard())
+            except Exception as e:
+                logger.debug("Failed to edit reply markup for finish_game: %s", e)
 
             leaderboard = game_engine.end_game(game)
             state_manager.delete_game(chat_id)

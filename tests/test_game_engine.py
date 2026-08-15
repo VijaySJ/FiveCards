@@ -244,7 +244,46 @@ def test_direct_drop_invalid_rank():
     assert not result["hand_empty"]
     assert len(game["players"][0]["hand"]) == 1
     assert game["discard_pile"][-1] == "8H"
-    assert game["turn_phase"] == "choose_action"
+    assert game["turn_phase"] == "must_draw"
     assert game["current_turn_idx"] == 0
     assert result["turn_advanced"] is False
+
+
+def test_start_next_round_when_running_raises():
+    """Calling start_next_round while game is already running should raise GameAlreadyRunningError."""
+    from app.core.game_engine import start_next_round
+    from app.core.exceptions import GameAlreadyRunningError
+
+    game = _make_test_game(3)
+    assert game["status"] == "running"
+    assert game["round_current"] == 1
+
+    with pytest.raises(GameAlreadyRunningError):
+        start_next_round(game)
+
+    # round_current must remain 1
+    assert game["round_current"] == 1
+
+
+def test_start_next_round_after_declare():
+    """start_next_round should work after declare and increment round_current by 1."""
+    from app.core.game_engine import start_next_round
+    from app.core.exceptions import GameAlreadyRunningError
+
+    game = _make_test_game(3)
+    assert game["round_current"] == 1
+
+    # Player 1 declares
+    process_declare(game, 1)
+    assert game["status"] == "declaring"
+
+    # Start next round
+    start_next_round(game)
+    assert game["status"] == "running"
+    assert game["round_current"] == 2
+
+    # Attempting to start again without declaring should fail
+    with pytest.raises(GameAlreadyRunningError):
+        start_next_round(game)
+    assert game["round_current"] == 2
 

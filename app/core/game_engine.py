@@ -601,6 +601,9 @@ def start_next_round(game: dict) -> dict[int, list[str]]:
     Returns:
         Dict mapping user_id → list of new cards.
     """
+    if game.get("status") == "running":
+        raise GameAlreadyRunningError("A round is already running.")
+
     for player in game["players"]:
         player["hand"] = []
     game["deck"] = []

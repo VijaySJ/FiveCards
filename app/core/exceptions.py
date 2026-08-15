@@ -109,5 +109,5 @@ class AlreadyJoinedError(GameException):
 class GameAlreadyRunningError(GameException):
     """Raised when trying to start a new game while one is active."""
 
-    def __init__(self) -> None:
-        super().__init__("❌ A game is already running in this group.")
+    def __init__(self, message: str = "❌ A game is already running in this group.") -> None:
+        super().__init__(message)
